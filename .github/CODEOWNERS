@@ -1,0 +1,3 @@
+# Veritabanı scriptleri ve entity'ler veritabanı sorumlusunun onayını gerektirir.
+/db/scripts/        @Zehranur04
+**/domain/model/    @Zehranur04
