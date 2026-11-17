@@ -1,0 +1,7 @@
+# test profili: Testcontainers PostgreSQL (TestcontainersConfiguration).
+# Bağlantı bilgisi konteynerden gelir (@ServiceConnection) ve DB_URL gibi ayarların
+# önüne geçer; testler Supabase'e bağlanmaz.
+logging:
+  level:
+    root: WARN
+    com.dogus.vacation: INFO
