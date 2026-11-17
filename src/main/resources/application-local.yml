@@ -1,0 +1,13 @@
+# local profili: internetsiz çalışma ve sunum yedeği.
+# Docker compose'daki local-db servisine (aynı db/scripts dosyalarıyla açılır) bağlanır.
+# Değerler .env dosyasından okunur: LOCAL_DB_URL, LOCAL_DB_USERNAME, LOCAL_DB_PASSWORD
+spring:
+  datasource:
+    url: ${LOCAL_DB_URL:jdbc:postgresql://localhost:5432/vacation}
+    username: ${LOCAL_DB_USERNAME}
+    password: ${LOCAL_DB_PASSWORD}
+
+logging:
+  level:
+    com.dogus.vacation: DEBUG
+    org.hibernate.SQL: DEBUG
