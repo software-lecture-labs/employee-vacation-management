@@ -1,0 +1,54 @@
+# Her PR'da ve dev/main'e her birleşmede proje derlenir ve bütün testler koşar.
+# Testler Testcontainers ile geçici bir PostgreSQL açar; Supabase'e bağlanılmaz,
+# bu yüzden bu iş akışı hiçbir gizli değer (secret) kullanmaz.
+name: Derleme ve testler
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Derle ve test et (./mvnw verify)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Kodu al
+        uses: actions/checkout@v7
+
+      - name: Java 21 (Temurin) kur
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Derle ve testleri koştur
+        run: ./mvnw --batch-mode --no-transfer-progress verify
+
+      - name: Test raporlarını sakla (hata olursa)
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-raporlari
+          path: target/surefire-reports/
+          retention-days: 7
+
+      - name: WAR dosyasını sakla
+        if: success() && github.event_name == 'push'
+        uses: actions/upload-artifact@v7
+        with:
+          name: employee-vacation-management-war
+          path: target/employee-vacation-management.war
+          retention-days: 7
