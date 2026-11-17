@@ -1,0 +1,32 @@
+
+
+Neden:
+Ne değişti:
+-
+Test:
+
+Refs: #
+# ----------------------------------------------------------------------
+# '#' ile başlayan satırlar commit'e girmez. Kurallar: CONTRIBUTING.md (4)
+#
+# Başlık: <tür>(<kapsam>): <ne yapılıyor>
+#   - En fazla 72 karakter, Türkçe, emir kipinde, küçük harfle başlar,
+#     sonunda nokta yok. Örnek:
+#     feat(leave-approval): izin onayında bakiye düşümünü ekle
+#   - Tür: feat, fix, test, refactor, docs, build, ci, chore, perf
+#   - Kapsam: auth, employee, department, leave-type, balance, accrual,
+#     leave-history, leave-request, leave-approval, leave-cancellation,
+#     holiday, team-calendar, usage-report, skeleton, db, mediator,
+#     error-handling, security, ci, docker, sonar, readme, swagger,
+#     contributing, requirements, report
+#   - Başlığa FR/BR kodu yazılmaz; kodlar Refs satırına gider.
+#
+# Neden: zorunlu. Kodu bilmeyen birinin anlayacağı düz bir cümle.
+# Ne değişti: 1-4 madde; sınıf veya metot adlarıyla.
+# Test: feat ve fix için zorunlu. Diğerlerinde
+#   "Test: gerekmez (sadece doküman)" yazılabilir.
+# Refs: #<issue> · FR-21, BR-05   (kodlar: docs/REQUIREMENTS.md)
+#
+# Satırlar 72 karakterde kırılır. Birlikte çalışıldıysa en alta:
+# Co-authored-by: Ad Soyad <eposta>
+# ----------------------------------------------------------------------
