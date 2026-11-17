@@ -1,0 +1,12 @@
+# Satır sonları işletim sisteminden bağımsız sabit kalsın.
+* text=auto
+
+# Unix betikleri LF, Windows betikleri CRLF olmalı; aksi halde çalışmazlar.
+mvnw        text eol=lf
+*.sh        text eol=lf
+*.cmd       text eol=crlf
+*.bat       text eol=crlf
+
+*.jar       binary
+*.war       binary
+*.png       binary
