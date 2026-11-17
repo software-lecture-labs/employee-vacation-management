@@ -1,0 +1,39 @@
+# Varsayılan ayarlar (profil seçilmezse: teslim ve Payara). Demo verisi yok, loglar INFO.
+# Gizli değerler her zaman ortam değişkeninden gelir; burada sadece yer tutucular var.
+spring:
+  application:
+    name: employee-vacation-management
+  config:
+    # Proje kökündeki .env dosyası varsa okunur (repoya girmez, bkz. .env.example).
+    import: optional:file:.env[.properties]
+  datasource:
+    # Supabase Session pooler (port 5432) JDBC adresi, sonunda sslmode=require
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      # Dört kişi aynı veritabanına bağlandığı için havuz küçük tutulur.
+      maximum-pool-size: 5
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Şema SQL scriptleriyle kurulur; Hibernate sadece entity'lerle uyumunu denetler.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: leave_mgmt
+        jdbc:
+          time_zone: Europe/Istanbul
+  jackson:
+    time-zone: Europe/Istanbul
+
+server:
+  port: 8080
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    root: INFO
