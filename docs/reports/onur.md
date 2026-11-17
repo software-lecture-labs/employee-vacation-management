@@ -40,3 +40,30 @@ Proje ilk günden çalıştırılabilir WAR olarak kuruldu; aynı dosya gömül�
 - `db/scripts` dosyalarını test veritabanına yükleyen ortak test tabanı (Zehra, 18 Kasım).
 - `@EnableScheduling` ve test profilinde kapatılması gece göreviyle (FR-31) gelecek.
 - Güvenlik (`SecurityConfig`, JWT) ve Swagger'da "Authorize" kimlik doğrulama PR'ında.
+
+## 17 Kasım 2026 — docs(contributing): katkı kuralları, şablonlar ve gereksinim listesi (#<PR no>)
+**İlgili gereksinimler:** Doğrudan bir FR/BR karşılanmadı; bu PR bütün kodların sözlüğünü (`docs/REQUIREMENTS.md`) ve commit/PR kurallarını getiriyor.
+**Use case(ler):** Yok (doküman ve ayar dosyaları)
+**Ne yaptım:**
+- `CONTRIBUTING.md`: altın kurallar, görev yaşam döngüsü, branch adları, commit başlık + açıklama biçimi, PR kuralları, GitHub ayarları ve günlük ritim.
+- `.gitmessage`: `git config commit.template .gitmessage` ile açılan commit şablonu; tür ve kapsam listesi yorum satırlarında.
+- `.github/pull_request_template.md`: Özet, İlgili iş, Değişiklikler, Nasıl test edildi, Kontrol listesi (REQUIREMENTS ve rapor kutucukları dahil).
+- `.github/ISSUE_TEMPLATE/`: `task.md` (görev), `bug.md` (hata), `config.yml` (boş issue kapalı).
+- `docs/REQUIREMENTS.md`: 38 FR, 18 BR, 11 NFR ve T1–T5 tek tabloda; hepsi ⬜, PR sütunu boş.
+**Validator'a koyduğum kurallar:**
+- Yok (kod yok)
+**Handler'daki kurallar ve transaction:**
+- Yok (kod yok)
+**Neden böyle yaptım (tasarım kararları):**
+- Gereksinim kodları commit başlığından çıkarılıp `Refs` satırına alındı; başlık kod listesini bilmeyen biri için de anlaşılır olmalı.
+- `REQUIREMENTS.md` satırları yalnızca PR birleşince değişiyor; böylece ekip içi Görev Takibi tablosuyla çelişmiyor.
+- Boş issue kapatıldı; her iş görev veya hata şablonuyla açılıyor.
+**Testler:**
+- Yok (sadece doküman). `.gitmessage` bir deneme reposunda denendi: yorum satırları commit'e girmiyor.
+**Karşılaştığım sorun ve çözümü:**
+- Yok
+**Sunumda anlatacağım tek cümle:**
+Commit, branch ve PR kurallarımızı `CONTRIBUTING.md`'ye yazdık; her commit'in sonundaki kodların ne olduğu ve hangi PR ile karşılandığı `docs/REQUIREMENTS.md`'den izleniyor.
+**Açık kalanlar:**
+- README'deki `docs/REQUIREMENTS.md` linki Zehra'nın README iskeleti PR'ında geliyor.
+- Branch koruması ve "Rebase and merge" ayarı repo yöneticisinin yetkisinde; rica edilecek.
