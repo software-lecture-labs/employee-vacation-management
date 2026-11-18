@@ -1,0 +1,46 @@
+# Yerel statik analiz: SonarQube Community Build + kendi PostgreSQL'i (NFR-02).
+# Başlatma:  docker compose -f docker-compose.sonar.yml up -d   -> http://localhost:9000
+# Durdurma:  docker compose -f docker-compose.sonar.yml down     (veriler volume'larda kalır)
+# Şifre .env dosyasındaki SONAR_DB_PASSWORD'den okunur (NFR-04). SonarQube en az 2 GB, rahat çalışması için 4 GB bellek ister.
+name: evm-sonar
+
+services:
+  sonarqube:
+    image: sonarqube:community
+    container_name: evm-sonarqube
+    depends_on:
+      sonar-db:
+        condition: service_healthy
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://sonar-db:5432/sonar
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: ${SONAR_DB_PASSWORD:?.env dosyasinda SONAR_DB_PASSWORD tanimli olmali}
+    ports:
+      - "9000:9000"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    restart: unless-stopped
+
+  sonar-db:
+    image: postgres:17-alpine
+    container_name: evm-sonar-db
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: ${SONAR_DB_PASSWORD:?.env dosyasinda SONAR_DB_PASSWORD tanimli olmali}
+      POSTGRES_DB: sonar
+    volumes:
+      - sonar_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sonar -d sonar"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
+  sonar_db_data:

@@ -23,6 +23,14 @@
         <java.version>21</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <springdoc.version>3.2.0</springdoc.version>
+
+        <!-- Test kapsamı (JaCoCo) ve statik analiz (yerel SonarQube), bkz. README "SonarQube Analysis" -->
+        <jacoco.version>0.8.14</jacoco.version>
+        <sonar-maven-plugin.version>5.8.0.7211</sonar-maven-plugin.version>
+        <sonar.projectKey>employee-vacation-management</sonar.projectKey>
+        <sonar.projectName>Employee Vacation Management</sonar.projectName>
+        <sonar.host.url>http://localhost:9000</sonar.host.url>
+        <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
     </properties>
 
     <dependencies>
@@ -88,10 +96,43 @@
     <build>
         <!-- Sürüm numarasız ad: komutlar ve Dockerfile sabit kalır -->
         <finalName>employee-vacation-management</finalName>
+        <pluginManagement>
+            <plugins>
+                <!-- Sürüm sabit: Sonar, sürümsüz "sonar:sonar" kısayolunu kaldırdı -->
+                <plugin>
+                    <groupId>org.sonarsource.scanner.maven</groupId>
+                    <artifactId>sonar-maven-plugin</artifactId>
+                    <version>${sonar-maven-plugin.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+
+            <!-- Testler çalışırken kapsamı ölçer; verify aşamasında target/site/jacoco altına
+                 HTML ve SonarQube'un okuduğu jacoco.xml raporunu yazar. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
