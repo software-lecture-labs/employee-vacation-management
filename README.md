@@ -52,7 +52,39 @@ _Her ilke için projedeki somut örnek._
 
 ## SonarQube Analysis
 
-_Her taramanın sonucu bir satır olarak eklenir: tarih, commit, bug, zafiyet, kod kokusu, kapsam, tekrar, notlar. Ekran görüntüleri: `docs/sonar/`._
+Statik analiz yerelde, Docker'da çalışan SonarQube Community Build ile yapılır; test kapsamını JaCoCo ölçer.
+Analiz her zaman `dev` dalından, teslimden önce son kez `main` dalından alınır.
+
+**İlk kurulum (bir kez)**
+
+1. `.env` dosyasında `SONAR_DB_PASSWORD` değerini doldurun (sadece yerel Sonar veritabanının şifresi).
+2. SonarQube'u başlatın; ilk açılış 1–2 dakika sürer:
+   ```bash
+   docker compose -f docker-compose.sonar.yml up -d
+   ```
+3. http://localhost:9000 adresine `admin` / `admin` ile girin ve istenen yeni şifreyi belirleyin.
+4. **Create Project → Local project**: anahtar `employee-vacation-management`, ana dal `dev`.
+5. **My Account → Security → Generate Tokens** ile bir analiz token'ı üretin ve `.env` içindeki `SONAR_TOKEN` satırına yazın. Token repoya girmez.
+
+**Analiz**
+
+```bash
+./mvnw clean verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.token=<SONAR_TOKEN>
+```
+
+`verify` testleri çalıştırır ve `target/site/jacoco/` altına kapsam raporunu yazar (HTML: `target/site/jacoco/index.html`);
+ardından analiz SonarQube'a gönderilir. Sunucu adresi ve proje anahtarı `pom.xml`'de tanımlıdır.
+Testler Testcontainers kullandığı için Docker'ın açık olması gerekir. SonarQube'u kapatmak için:
+`docker compose -f docker-compose.sonar.yml down` (veriler silinmez).
+
+**Quality Gate:** "Sonar way": yeni kodda kapsam en az %80, tekrar en fazla %3, güvenlik sıcak noktalarının
+tamamı incelenmiş; ayrıca tüm kodda Reliability, Security ve Maintainability notları A.
+
+**Tarama geçmişi** (her taramada bir satır eklenir; ekran görüntüleri `docs/sonar/` altında)
+
+| Tarih | Dal / commit | Bug | Zafiyet | Kod kokusu | Kapsam | Tekrar | Notlar (R / S / M) | Quality Gate |
+|---|---|---|---|---|---|---|---|---|
+| _ilk tarama bekleniyor_ | | | | | | | | |
 
 ## Teknik Kararlar
 
