@@ -84,3 +84,35 @@ Veritabanı önce SQL scriptleriyle tasarlandı; aynı üç script Supabase'de, 
 - Bilgisayarın dil ayarı `tr_TR`: `"i".toUpperCase()` Türkçe'de `"İ"` döndürür → kodda büyük-küçük harf dönüşümlerinde `Locale.ROOT` kullanılacak.
 **Sunumda anlatacağım tek cümle:**
 Entity'ler veritabanı şemasından yazıldı ve uygulama her açılışta `ddl-auto: validate` ile Java sınıflarının tablolarla birebir uyuştuğunu kendisi kontrol ediyor.
+
+## 18 Kasım 2026 — test(db): entegrasyon test tabanı ve test verisi oluşturucuları (#6)
+**İlgili gereksinimler:** T1–T5 · FR-13, FR-32 · NFR-08
+**Use case(ler):** Yok (test altyapısı)
+**Ne yaptım:**
+- `AbstractIntegrationTest`: veritabanına giden bütün entegrasyon testlerinin ortak tabanı. Her testten önce 9 tabloyu `TRUNCATE ... RESTART IDENTITY CASCADE` ile boşaltıp `02_seed_leave_types.sql`'i yeniden çalıştırıyor; `leaveType("ANNUAL")` ve `countRows("tablo")` yardımcılarını sağlıyor.
+- `support/TestData`: test verisi oluşturucuları — `department()`, `employee(departman, rol)`, `balance(çalışan, tür, yıl, gün)`, `leaveRequest(...)`. Departman adı ve e-posta her çağrıda farklı üretiliyor.
+- `DatabaseResetTest`: sıfırlamanın çalıştığını kanıtlayan 4 test.
+- `LeaveTypeRepository.findByCode`: izin türünü değişmeyen koduyla bulan türetilmiş sorgu.
+- `PersistenceMappingTest`'i yeni tabana taşıdım; elle yazılmış `try/finally` temizliği kalktı, çalışan ve bakiye kaydını deneyen bir test ekledim.
+- Değişiklikleri 4 commit'e böldüm; PR 266 satır, plandaki sınırın altında.
+**Validator'a koyduğum kurallar:**
+- Yok (use case yok)
+**Handler'daki kurallar ve transaction:**
+- Handler yok. Test sınıflarına bilerek `@Transactional` konmadı: test kendi transaction'ında koşsaydı her şey test sonunda zaten geri alınır, rollback testleri "veritabanında iz kaldı mı?" sorusunu ölçemezdi. Bu yüzden ölçüm `countRows` ile doğrudan veritabanına soruluyor.
+**Neden böyle yaptım (tasarım kararları):**
+- H2 yerine gerçek PostgreSQL (Testcontainers): şema PostgreSQL'e özgü özellikler kullanıyor (`leave_mgmt` şeması, `lower(email)` üzerinde tekil index, CHECK kısıtları, `timestamptz`, RLS); H2'de bu scriptler aynen çalışmaz ve rollback testleri gerçek veritabanının davranışını ölçmemiş olurdu. Testler Supabase'deki scriptlerin aynısıyla kurulan PostgreSQL 17'ye gidiyor.
+- Temizlik testten sonra değil önce (`@BeforeEach`): önceki bir test yarıda çökse bile her test temiz başlıyor.
+- Hazır izin türleri her testten önce yeniden yükleniyor: bir test izin türünü değiştirse bile sonraki test aynı 4 türle ve aynı id'lerle (1–4) başlıyor.
+- `TestData` kaydedilmemiş nesne döndürüyor: aynı oluşturucular veritabanlı testlerde repository ile kaydediliyor, Mockito'lu birim testlerinde doğrudan kullanılabiliyor.
+- Bütün entegrasyon testleri aynı ayarlarla (`@SpringBootTest`, `test` profili, `TestcontainersConfiguration`) çalıştığı için tek Spring bağlamını ve tek konteyneri paylaşıyor; testler hızlı kalıyor.
+- Diğerlerinin kullanımı:
+  `class ApproveRollbackIT extends AbstractIntegrationTest { ... employees.save(TestData.employee(departments.save(TestData.department()))); ... assertThat(countRows("leave_request_history")).isZero(); }`
+**Testler:**
+- `DatabaseResetTest.firstTestSeesOnlyItsOwnDepartment` / `secondTestSeesOnlyItsOwnDepartment` — iki test aynı departmanı ekleyip tabloda 1 satır görüyor; sıfırlama çalışmasaydı ikinci çalışan 2 satır görürdü.
+- `DatabaseResetTest.renamingASeedLeaveTypeAffectsOnlyThisTest` / `seedLeaveTypesStartFromTheirOriginalState` — bir testte değiştirilen izin türü sonraki testte özgün adıyla ve id 1 ile geri geliyor.
+- `PersistenceMappingTest.balanceIsSavedWithItsEmployeeAndRemainingDaysAreCalculated` — çalışan ve bakiye kaydediliyor, kalan gün 14 olarak hesaplanıyor.
+- `./mvnw verify`: 10 test, 0 hata (3 mevcut + 3 eşleme + 4 sıfırlama).
+**Karşılaştığım sorun ve çözümü:**
+- Yok.
+**Sunumda anlatacağım tek cümle:**
+Testler H2 gibi taklit bir veritabanında değil, Supabase'deki scriptlerle kurulan gerçek PostgreSQL'de koşuyor ve her test temiz bir veritabanıyla başlıyor; bu yüzden rollback testleri gerçek davranışı ölçüyor.
