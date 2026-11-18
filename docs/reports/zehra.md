@@ -116,3 +116,56 @@ Entity'ler veritabanı şemasından yazıldı ve uygulama her açılışta `ddl-
 - Yok.
 **Sunumda anlatacağım tek cümle:**
 Testler H2 gibi taklit bir veritabanında değil, Supabase'deki scriptlerle kurulan gerçek PostgreSQL'de koşuyor ve her test temiz bir veritabanıyla başlıyor; bu yüzden rollback testleri gerçek davranışı ölçüyor.
+
+## 18 Kasım 2026 — docs(readme): 15 başlıklı README iskeleti (#7)
+**İlgili gereksinimler:** Kriter 3 (Kapsamlı README.md)
+**Use case(ler):** Yok (doküman)
+**Ne yaptım:**
+- Kök dizindeki 2 satırlık `README.md`'yi, proje boyunca doldurulacak 15 başlıklı iskeletle değiştirdim.
+- En üste proje tanımını ve "Gereksinimler ve ilerleme → `docs/REQUIREMENTS.md`" bağlantısını koydum (Plan 10.8).
+- Her başlığın altına o bölüme ne yazılacağını ve ilgili dokümanı (`ARCHITECTURE.md`, `DATABASE_DESIGN.md`, `API_DOCUMENTATION.md`, `TEST_PLAN.md`, `DEPLOYMENT.md`, `TECHNICAL_DECISIONS.md`, `db/README.md`) yazdım.
+- Ekip tablosuna dört üyenin GitHub kullanıcı adını ve modülünü ekledim; kullanıcı adlarını commit geçmişinden ve PR inceleyici listesinden doğruladım.
+**Validator'a koyduğum kurallar:**
+- Yok (kod yok)
+**Handler'daki kurallar ve transaction:**
+- Yok
+**Neden böyle yaptım (tasarım kararları):**
+- Başlıkların 11'i analiz dokümanındaki README şablonundan (bölüm 16.1): Özellikler, Kullanılan Teknolojiler, Mimari, Veritabanı Şeması, Kurulum ve Çalıştırma, Demo Kullanıcıları, API Dokümantasyonu, Transaction Senaryoları, Testleri Çalıştırma, SOLID Uygulaması, Ekip.
+- Üçü plandan: SonarQube Analysis (her taramanın tablosu), Team Contributions (kişisel raporların özeti), Ders Kriterleri (her kriterin kanıtına bağlantı). On beşincisi Teknik Kararlar: hocanın SOAP/gRPC sorusunun cevabı olan `TECHNICAL_DECISIONS.md`'ye bağlanıyor. Böylece hocanın README'de arayacağı her kriterin bir başlığı var.
+- Şablondaki SonarCloud rozetleri konmadı, çünkü plan SonarCloud yerine yerel SonarQube kullanıyor.
+- Ekip tablosunda e-posta yok, yalnızca GitHub kullanıcı adı var: repo herkese açık.
+**Testler:**
+- Gerekmez (sadece doküman); `git diff --stat` ile yalnızca `README.md`'nin değiştiği doğrulandı.
+**Karşılaştığım sorun ve çözümü:**
+- Görev Takibi'nde bu madde yanlışlıkla "Bitti" işaretlenmişti, repoda iskelet yoktu → görev yapıldı ve durum PR'a göre güncellendi.
+- Dosya kopyalanırken hedef olarak yanlış ad (`README..md`) verildi, repoda ikinci bir dosya oluştu → fazla dosya silindi, içerik asıl `README.md`'nin üzerine kopyalandı.
+**Sunumda anlatacağım tek cümle:**
+README, hocanın ders kriterlerinin her biri için bir başlıkla ilk günden repoda; her ekip üyesi kendi bölümünü proje ilerledikçe dolduruyor.
+
+## 18 Kasım 2026 — feat(working-day): iş günü hesabı ve sözleşme testleri (#8)
+**İlgili gereksinimler:** FR-15 · BR-01
+**Use case(ler):** Yok (alan bileşeni; `SubmitLeave` use case'i tarafından kullanılacak)
+**Ne yaptım:**
+- `domain/policy/WorkingDayCalculator`: iki tarih arasındaki iş günü sayısını veren arayüz, `int count(LocalDate startDate, LocalDate endDate)`.
+- `domain/policy/WeekdayWorkingDayCalculator` (`@Component`): başlangıç ve bitiş dahil Pazartesi–Cuma günlerini sayıyor; bitiş başlangıçtan önceyse `IllegalArgumentException`, tarih boşsa `NullPointerException` fırlatıyor.
+- `WorkingDayCalculatorContractTest`: her uygulamanın geçmesi gereken ortak testleri içeren soyut test sınıfı; `WeekdayWorkingDayCalculatorTest` bu sınıftan türüyor.
+- Değişiklikleri 2 commit'e böldüm (uygulama, testler).
+**Validator'a koyduğum kurallar:**
+- Yok (use case yok). Bitişin başlangıçtan önce olmaması kullanıcıya 400 dönecek şekilde `SubmitLeave` Validator'ında kontrol edilecek; bileşendeki kontrol ikinci savunma hattı.
+**Handler'daki kurallar ve transaction:**
+- Yok. Bileşen veritabanına gitmiyor, saf Java hesaplaması.
+**Neden böyle yaptım (tasarım kararları):**
+- Arayüz + uygulama: talep açan kod somut sınıfa değil arayüze bağlanıyor (DIP). Resmi tatilleri de düşen bonus hesap (FR-38) aynı arayüzü uygulayıp eskisinin yerine geçebiliyor; mevcut kod değişmiyor (OCP).
+- Soyut sözleşme testi (LSP): testler arayüz için bir kez yazıldı; her yeni uygulama bu sınıftan türeyen bir testle aynı 8 testten geçmek zorunda. Bu, "alt tür üst türün yerine sorunsuz kullanılabilir" ilkesinin testle gösterilmesi.
+- `isWorkingDay` metodu `protected`: tatil hesabı isterse bu sınıftan türeyip yalnızca bu kuralı genişletebiliyor.
+- Dönüş tipi `int`: iş günü her zaman tam sayı; veritabanındaki `DECIMAL(4,1)` alana çağıran taraf `BigDecimal` olarak yazıyor.
+- Gün gün sayma (`datesUntil`): bir talep en fazla 30 iş günü (BR-06); formülle hesaplamaya göre okunması ve tatil kuralının eklenmesi daha kolay.
+**Testler:**
+- `WorkingDayCalculatorContractTest.countsWorkingDaysIncludingStartAndEnd` (6 durum, `@ParameterizedTest`): aynı gün hafta içi → 1, Pazartesi–Cuma → 5, Cuma–Pazartesi → 2, Cumartesi–Pazar → 0, aynı gün Cumartesi → 0, iki tam hafta → 10.
+- `rejectsEndDateBeforeStartDate` — bitiş başlangıçtan önceyse hata.
+- `rejectsMissingDates` — boş tarih kabul edilmiyor.
+- `./mvnw verify`: 18 test, 0 hata (8 yeni).
+**Karşılaştığım sorun ve çözümü:**
+- Yok.
+**Sunumda anlatacağım tek cümle:**
+İş günü hesabı bir arayüzün arkasında; resmi tatilleri de düşen bonus hesap aynı sözleşme testlerinden geçerek mevcut koda dokunmadan yerine takılabiliyor.
