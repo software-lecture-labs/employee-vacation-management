@@ -1,0 +1,13 @@
+package com.dogus.vacation.infrastructure.persistence;
+
+import com.dogus.vacation.domain.model.LeaveRequestHistory;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+/**
+ * {@code leave_request_history} tablosu için Spring Data repository'si.
+ *
+ * <p>Temel kaydetme, bulma ve listeleme metotları {@link JpaRepository}'den gelir;
+ * özel sorgular onları kullanan use case ile birlikte eklenir.
+ */
+public interface LeaveRequestHistoryRepository extends JpaRepository<LeaveRequestHistory, Long> {
+}
