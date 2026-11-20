@@ -169,3 +169,34 @@ README, hocanın ders kriterlerinin her biri için bir başlıkla ilk günden re
 - Yok.
 **Sunumda anlatacağım tek cümle:**
 İş günü hesabı bir arayüzün arkasında; resmi tatilleri de düşen bonus hesap aynı sözleşme testlerinden geçerek mevcut koda dokunmadan yerine takılabiliyor.
+
+## 20 Kasım 2026 — feat(entitlement): kıdem ve yaşa göre yıllık izin hakkı (#96)
+**İlgili gereksinimler:** FR-33 · T3, T4 (kullanacak olanlar)
+**Use case(ler):** Yok (alan bileşeni; `CreateEmployee` (T4) ve `RunAnnualAccrual` (T3) tarafından kullanılacak)
+**Ne yaptım:**
+- `domain/policy/EntitlementPolicy`: verilen yıl için yıllık izin gününü veren arayüz, `int annualLeaveDays(LocalDate hireDate, LocalDate birthDate, int year)`.
+- `domain/policy/SeniorityAndAgeEntitlementPolicy` (`@Component`): gereksinim dokümanı 4.1'deki tablo. 1 yıldan az kıdem → hak yok (0), 1–5 yıl → 14, 6–14 yıl → 20, 15 yıl ve üstü → 26 gün; o yıl 18 yaşında veya küçük ya da 50 yaşında veya büyük olanlarda sonuç 20 günden az olamaz.
+- Hak ediş yılı işe giriş yılından önceyse `IllegalArgumentException`, tarih boşsa `NullPointerException`.
+- Değişiklikleri 2 commit'e böldüm (uygulama, testler).
+**Validator'a koyduğum kurallar:**
+- Yok (use case yok).
+**Handler'daki kurallar ve transaction:**
+- Yok. Bileşen veritabanına gitmiyor; sonucu bakiyeye yazmak T3 ve T4 Handler'larının transaction'ı içinde yapılacak.
+**Neden böyle yaptım (tasarım kararları):**
+- Kıdem ve yaş, hak ediş yılından işe giriş ve doğum yılı çıkarılarak bulunuyor; ay ve gün dikkate alınmıyor. Dokümandaki örnek böyle (2027 hak edişinde 2021'de giren biri 6 yıl). Bu, 4857 sayılı İş Kanunu'nun 53. maddesinin projeye özel basitleştirilmiş hâli; sunumda bilinçli tercih olarak anlatılacak.
+- Yaş kuralı yalnızca hakkı olan çalışana uygulanıyor: 1 yılını doldurmamış çalışanın yaşı ne olursa olsun hakkı yok. Dokümanda "yukarıdaki değer 20'den azsa 20 gün" deniyor; kanunda da önce en az 1 yıl çalışma şartı geliyor, yaş kuralı yalnızca alt sınırı belirliyor.
+- Arayüz + uygulama: hakkı kullanan kod somut sınıfa değil arayüze bağlanıyor (DIP). Kural değişirse (örneğin şirkete özel ek gün) yeni bir uygulama yazılıp yerine takılabiliyor; T3 ve T4 değişmiyor (OCP).
+- Parametre olarak `Employee` yerine tarihler: kural yalnızca iki tarihe bakıyor. Entity'ye bağlansaydı test için her durumda çalışan, departman ve rol kurmak gerekirdi; tarihlerle dokümandaki tablo satır satır test edilebiliyor.
+- Dönüş tipi `int`: kural tam gün üretiyor; bakiyedeki `numeric(4,1)` alana çağıran taraf `BigDecimal.valueOf(gün)` ile yazıyor.
+- Kademe ve yaş sınırları isimli sabitler (`JUNIOR_DAYS`, `OLDER_MIN_AGE` gibi): kod dokümandaki tabloyla eşleşiyor ve SonarQube'un "magic number" uyarısı çıkmıyor.
+**Testler:**
+- `SeniorityAndAgeEntitlementPolicyTest.calculatesAnnualLeaveDaysBySeniorityAndAge` (14 durum, `@ParameterizedTest` + `@CsvSource`, hak ediş yılı 2027):
+  - Dokümandaki zorunlu örnekler: 0 yıl → 0, 5 yıl → 14, 6 yıl → 20, 15 yıl → 26, 51 yaş + 2 yıl → 20.
+  - Sınırlar: 14 ve 15 yıl; 17, 18 ve 19 yaş; 49 ve 50 yaş; 31 Aralık'ta işe giren 1 yıl sayılıyor; 52 yaş + 27 yıl → 26 (yaş kuralı hakkı düşürmüyor); 57 yaş + 0 yıl → 0.
+- `rejectsYearBeforeHireYear` — hak ediş yılı işe giriş yılından önceyse hata, mesajda iki yıl da yazıyor.
+- `rejectsMissingDates` — boş tarih kabul edilmiyor.
+- `./mvnw verify`: 126 test, 0 hata (16 yeni).
+**Karşılaştığım sorun ve çözümü:**
+- Dokümandaki yaş kuralı, 1 yılını doldurmamış 50 yaş üstü çalışan için açık değildi → kanundaki sıraya göre yorumlandı, kararı bir test satırıyla sabitledim ve PR açıklamasına yazdım.
+**Sunumda anlatacağım tek cümle:**
+Yıllık izin hakkı kanundaki kademelerin basitleştirilmiş hâliyle tek bir politika sınıfında hesaplanıyor; kural değişirse yeni bir politika takılıyor, çalışan ekleme ve yıllık hak ediş kodu değişmiyor.
