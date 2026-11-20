@@ -1,0 +1,13 @@
+#if (${PACKAGE_NAME} && ${PACKAGE_NAME} != "")package ${PACKAGE_NAME};#end
+
+
+import com.dogus.vacation.application.mediator.Request;
+
+/**
+ * ${NAME} use case'inin isteği.
+ *
+ * <p>Tek alanlık kurallar burada Jakarta anotasyonlarıyla yazılır
+ * ({@code @NotNull}, {@code @Size}); mesajlar Türkçe olur.
+ */
+public record ${NAME}Request() implements Request<${NAME}Response> {
+}
