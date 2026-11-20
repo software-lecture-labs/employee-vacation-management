@@ -84,7 +84,13 @@ tamamı incelenmiş; ayrıca tüm kodda Reliability, Security ve Maintainability
 
 | Tarih | Dal / commit | Bug | Zafiyet | Kod kokusu | Kapsam | Tekrar | Notlar (R / S / M) | Quality Gate |
 |---|---|---|---|---|---|---|---|---|
-| _ilk tarama bekleniyor_ | | | | | | | | |
+| 20.11.2026 | `dev` / `12cf0b0` | 2 | 0 | 0 | %89.7 | %0.0 | D / A / A | Passed |
+
+İlk taramada (temel çizgi, 2.258 satır kod) Reliability notu D çıktı. Nedeni
+`WeekdayWorkingDayCalculator` içindeki tek satır: `DayOfWeek` karşılaştırması `!=` ile yapılmış
+(kural `java:S8696`; Sonar aynı satırı iki kez sayıyor). Enum için `!=` doğrudur, ama
+satırın `switch` ile yeniden yazılmasıyla uyarı kapanacak. Ekran görüntüsü:
+[`docs/sonar/sonar-2026-11-20.png`](docs/sonar/sonar-2026-11-20.png).
 
 ## Teknik Kararlar
 
