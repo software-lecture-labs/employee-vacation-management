@@ -101,3 +101,37 @@ Handler sadece "bakiye yetersiz" der, hangi HTTP koduyla ve hangi JSON'la dönec
 **Açık kalanlar:**
 - 401 ve rol kaynaklı 403 cevaplarının da aynı JSON biçiminde dönmesi Onur'un güvenlik ayarında (`AuthenticationEntryPoint`, `AccessDeniedHandler`) yapılmalı; `ErrorResponse` kullanılabilir.
 - Swagger'daki hata örnekleri 24 Kasım'da eklenecek.
+
+## 20 Kasım 2026 — feat(leave-request): talep durum geçişleri ve onaylayıcı seçimi (#94)
+**İlgili gereksinimler:** BR-07, BR-08, BR-09, FR-24 · FR-18, FR-21, FR-22, FR-23, FR-25, FR-28, FR-29, FR-31 için entity geçişleri (endpoint'leri kendi PR'larında)
+**Use case(ler):** Yok (alan katmanı). Sınıflar: `LeaveRequest`, `LeaveRequestStatus`, `ApproverResolver`, `ApprovalRoute`
+**Ne yaptım:**
+- `LeaveRequest`'e geçiş metotlarını ekledim: `approve`, `reject`, `withdraw`, `requestCancellation`, `withdrawCancellationRequest`, `rejectCancellationRequest`, `approveCancellationRequest`, `cancel`, `expireCancellationRequest`; ayrıca `isOwnedBy`.
+- Geçersiz geçişte `InvalidStateTransitionException` (409) atılıyor; mesaj Türkçe durum adını içeriyor: "Talep 'Reddedildi' durumundayken onaylanamaz."
+- `LeaveRequestStatus`'a Türkçe ad (`label()`) ve son durum bilgisi (`isFinal()`) eklendi.
+- `ApproverResolver`: İK'nın talebini başka bir aktif İK; diğerlerini aktif yöneticisi; yöneticisi yoksa veya pasifse herhangi bir aktif İK onaylıyor (BR-07, plan K-3). `checkCanDecide` kendi talebinde `SELF_APPROVAL_NOT_ALLOWED`, yanlış kişide `ACTION_NOT_ALLOWED` ile 403 atıyor (FR-24).
+**Validator'a koyduğum kurallar:**
+- Yok. Gerekçe alanlarının dolu olması entity'de de korunuyor (boş gerekçe programlama hatası sayılıyor); kullanıcıya dönen 400 ilgili Validator'larda yazılacak (BR-09).
+**Handler'daki kurallar ve transaction:**
+- Entity transaction açmıyor; geçişler onay (T1) ve iptal (T2) Handler'larının transaction'ı içinde çağrılacak.
+- Tarih kuralları `today` parametresiyle geliyor: başlamış izin iptal edilemiyor (BR-08), bitişi geçmiş talep onaylanamıyor ama reddedilebiliyor (plan K-11), iptal talebi başlangıç gününde sonuçsuz oluyor (BR-18).
+**Neden böyle yaptım (tasarım kararları):**
+- Durum değişikliği entity'nin kendi metotlarında: hangi Handler çağırırsa çağırsın reddedilmiş talep onaylanamıyor; kural tek yerde.
+- Entity'de setter yok; durum ancak geçerli bir geçişle değişiyor.
+- `ApproverResolver` veritabanına bakmıyor, sadece talep sahibine ve yöneticisine bakıyor; bu yüzden saf birim testiyle denenebiliyor. Kural her işlemde yeniden hesaplanıyor; talep beklerken yönetici değişirse yeni yönetici karar veriyor.
+- Aynı `ApproverResolver` onay, red, iptal talebi kararı ve şirket adına iptal için kullanılacak (BR-15, BR-17); kural kopyalanmıyor.
+- `#93`'teki hata sınıflarına bağlı olduğu için PR, #93 birleşene kadar draft kaldı.
+**Testler:**
+- `LeaveRequestTest` — 25 test: her geçişin başarılı yolu, geçersiz durumdan geçiş (409), bitişi geçmiş talebin onaylanamaması, başlamış iznin iptal edilememesi, iptal talebinin başlangıç gününde sonuçsuz olması, son durumlardan hiçbir geçiş olmaması, her durumun Türkçe adı
+- `ApproverResolverTest.employeeWithActiveManagerIsDecidedByThatManagerOnly` — yöneticisi olan çalışanı sadece yöneticisi onaylar, İK onaylayamaz
+- `ApproverResolverTest.inactiveManagerCountsAsNoManager` — pasif yönetici varsa talep İK'ya düşer
+- `ApproverResolverTest.hrRequestIsDecidedByAnotherHrEvenIfHrHasManager` — İK'nın talebini başka İK onaylar
+- `ApproverResolverTest.ownRequestIsForbiddenWithSelfApprovalCode` — kendi talebi 403 `SELF_APPROVAL_NOT_ALLOWED`
+- `ApproverResolverTest` diğer 4 test — yöneticisiz çalışan, pasif İK, yanlış onaylayıcı, doğru onaylayıcı
+**Karşılaştığım sorun ve çözümü:**
+- Bu iş #93'teki hata sınıflarına bağlıydı ve #93 henüz birleşmemişti; branch #93'ün branch'inden açıldı, PR draft olarak bekletildi.
+**Sunumda anlatacağım tek cümle:**
+Reddedilmiş bir talebi onaylamaya çalışan her kod entity'nin kendisinden 409 alır; kimin onaylayacağı da tek bir sınıfta, `ApproverResolver`'da.
+**Açık kalanlar:**
+- #93 birleşince branch `dev`'e rebase edilip draft'tan çıkarılacak.
+- Durum geçmişini (`leave_request_history`) yazmak Zehra'nın `LeaveHistoryService`'inde; Handler'lar geçişten sonra onu çağıracak.
