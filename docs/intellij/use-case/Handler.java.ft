@@ -1,0 +1,22 @@
+#if (${PACKAGE_NAME} && ${PACKAGE_NAME} != "")package ${PACKAGE_NAME};#end
+
+
+import com.dogus.vacation.application.mediator.RequestHandler;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * ${NAME} use case'ini çalıştırır.
+ *
+ * <p>Bağımlılıklar constructor ile alınır. Giriş yapan kullanıcı
+ * {@code CurrentUserProvider}'dan, "bugün" {@code Clock}'tan alınır.
+ */
+@Component
+public class ${NAME}Handler implements RequestHandler<${NAME}Request, ${NAME}Response> {
+
+    @Override
+    @Transactional
+    public ${NAME}Response handle(${NAME}Request request) {
+        throw new UnsupportedOperationException("${NAME}Handler henüz yazılmadı");
+    }
+}

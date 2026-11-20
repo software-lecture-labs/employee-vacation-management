@@ -1,0 +1,25 @@
+#if (${PACKAGE_NAME} && ${PACKAGE_NAME} != "")package ${PACKAGE_NAME};#end
+
+
+import java.util.ArrayList;
+import java.util.List;
+
+import com.dogus.vacation.application.mediator.RequestValidator;
+import com.dogus.vacation.application.mediator.ValidationError;
+import org.springframework.stereotype.Component;
+
+/**
+ * {@link ${NAME}Request} için alanlar arası kurallar.
+ *
+ * <p>Mediator bu sınıfı istek anotasyonları geçtikten sonra çağırır; alanların boş
+ * olmadığı varsayılabilir. Veritabanına bakan kurallar burada değil, Handler'dadır.
+ */
+@Component
+public class ${NAME}Validator implements RequestValidator<${NAME}Request> {
+
+    @Override
+    public List<ValidationError> validate(${NAME}Request request) {
+        List<ValidationError> errors = new ArrayList<>();
+        return errors;
+    }
+}

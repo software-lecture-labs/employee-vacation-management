@@ -1,0 +1,10 @@
+#if (${PACKAGE_NAME} && ${PACKAGE_NAME} != "")package ${PACKAGE_NAME};#end
+
+
+/**
+ * ${NAME} use case'inin cevabı.
+ *
+ * <p>Entity, şifre hash'i veya version taşımaz; ortak bir view varsa onu sarar.
+ */
+public record ${NAME}Response() {
+}
