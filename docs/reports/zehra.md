@@ -318,3 +318,46 @@ Talebin her durum değişikliği aynı transaction'da ve hemen veritabanına yaz
 - PR yaklaşık 730 satırla önerilen ~400 satır sınırını aştı → commit'ler use case başına bölündü, PR açıklamasına not düşüldü.
 **Sunumda anlatacağım tek cümle:**
 İzin türleri üç ayrı use case olarak yazıldı; her kural kendi katmanında (anotasyon, Validator, Handler) ve bakiye davranışı gibi geçmiş kayıtları bozabilecek alanlar oluşturulduktan sonra değiştirilemiyor.
+
+## 20 Kasım 2026 — feat(leave-history): şirket izin geçmişi araması (#100)
+**İlgili gereksinimler:** FR-26 · NFR-07 · Issue #52 (İK kısıtı eklenince kapanacak)
+**Use case(ler):** `SearchLeaveHistory`
+**Ne yaptım:**
+- `GET /api/leave-requests/history?from&to&departmentId&status&employeeId&page&size` (200): `leave_request_history` satırlarını filtreleyip sayfalı döndürüyor, en yeni olay önce. Her satır bir durum değişikliği: talep, talep sahibi, departmanı, izin türü, izin tarihleri, eski → yeni durum, işlemi yapan ve not.
+- `application/common/PageResponse<T>` (`content, page, size, totalElements, totalPages`) ve `PageResponse.of(sayfa, eşleyici)`: projedeki ilk sayfalı liste olduğu için ortak sınıfı ben ekledim; ekibin sayfalı listeleri de bunu kullanacak.
+- `view/HistoryEntryView` ve `mapper/HistoryEntryMapper`; Bilge'nin `EmployeeRef` ve `LeaveTypeRef` görünümlerini yeniden kullandım.
+- `LeaveRequestHistorySpecifications.matching(...)`: beş isteğe bağlı filtre.
+- `LeaveRequestHistoryRepository`: `JpaSpecificationExecutor` ve `@EntityGraph`.
+- `api/LeaveHistoryController`: sorgu parametrelerini isteğe çevirip `mediator.send()` çağırıyor.
+- Değişiklikleri 6 commit'e böldüm (ortak sayfa cevabı, görünüm ve eşleyici, sorgu katmanı, use case, Controller, testler); PR'ı taslak olarak açtım.
+**Validator'a koyduğum kurallar:**
+- İstek anotasyonları (400): `page ≥ 0`, `size` 1–100, departman ve çalışan id'si pozitif. Boş `page` 0, boş `size` 20 (NFR-07).
+- `SearchLeaveHistoryValidator` (400): bitiş tarihi başlangıçtan önce olamaz.
+- Controller (400): bilinmeyen durum (`APROVED`) ya da farklı biçimde tarih (`01.11.2026`) mediator'a ulaşmadan reddediliyor.
+**Handler'daki kurallar ve transaction:**
+- `@Transactional(readOnly = true)`: salt okunur transaction.
+- Tarih filtresi gün olarak geliyor; Handler `Clock` bean'inin saat dilimiyle (Europe/Istanbul) `from` gününün başı ve `to`'nun ertesi gününün başı olarak aralığa çeviriyor. Böylece `to` günü 23:59'daki olay da dahil.
+- Sıralama: olay zamanı, eşitse id; ikisi de azalan.
+**Neden böyle yaptım (tasarım kararları):**
+- Arama talepler değil geçmiş satırları üzerinde: FR-26 "onaylanan, reddedilen, geri çekilen ve iptal edilen talepler, işlemi yapan kişi ve gerekçesiyle" diyor; bu bilgi `leave_request_history`'de. Talebin açılışı da dahil tüm olaylar gösteriliyor, `status` filtresiyle daraltılabiliyor.
+- Dinamik sorgu için Spring Data `Specification` (Criteria API): beş filtrenin her biri boş olabilir. Her kombinasyon için ayrı repository metodu 32 metot olurdu; `:p IS NULL OR ...` biçimindeki tek JPQL sorgusu ise okunması zor ve PostgreSQL'de boş parametrenin tipi yüzünden hata verebiliyor. Specification'da yalnızca dolu filtreler birleştiriliyor.
+- N+1 sorununa karşı `@EntityGraph`: her satırda talep, çalışan, departman, tür ve işlemi yapan gösteriliyor; ilişkiler LAZY olduğu için önlem alınmasa 20 satırlık sayfa 1 + 100 sorgu olurdu. `@EntityGraph` bunları ana sorguya join ile ekliyor; sayfa en fazla 2 sorguyla (SELECT ve gerekirse COUNT) yükleniyor.
+- `PageResponse<T>`: plan 6.2'ye göre Spring'in `Page` nesnesi dışarı verilmiyor; JSON biçimi Spring sürümüne bağlı kalmıyor ve SOAP/gRPC giriş katmanları da aynı yapıyı kullanabiliyor.
+- Tarih parametreleri Controller'da `@DateTimeFormat` ile çözülüyor; istek record'unda Spring anotasyonu yok (plan 9.2: Handler ve istekler HTTP'ye özgü tip içermez).
+- İK kısıtı (`@PreAuthorize("hasRole('HR')")`) güvenlik altyapısı `dev`'de olmadığı için eklenmedi; issue #52 `Refs` ile bağlandı, kapatılmadı.
+**Testler:**
+- `SearchLeaveHistoryValidatorTest` (3 birim testi): sıralı aralık, tek gün ve açık uçlu aralık geçerli; ters aralık hata; sayfalama varsayılanları 0 ve 20.
+- `SearchLeaveHistoryIntegrationTest` (8 test, mediator üzerinden, Testcontainers PostgreSQL; iki departmanda iki çalışanın iki talebi için dört olay, ikisi gece yarısının iki yanında):
+  - Filtresiz arama: dört olay, en yeni önce.
+  - Bir olayın tüm sütunları (çalışan, departman, tür, tarih, durumlar, işlemi yapan, not, zaman).
+  - Gün sınırı: 3 Kasım filtresi 23:30'daki olayı alıyor, ertesi gün 00:15'tekini almıyor.
+  - Departman, çalışan ve durum filtreleri tek tek ve birlikte.
+  - Sayfalama: 3'lük sayfalarda ilk sayfa 3, ikinci sayfa 1 kayıt; toplam 4, 2 sayfa.
+  - Ters tarih aralığı ve 101'lik sayfa 400.
+  - Sorgu sayısı: Hibernate istatistikleriyle 3 satırlık sayfanın en fazla 2 SQL ile geldiği doğrulanıyor (N+1 yok).
+- `LeaveHistoryControllerTest` (4 test, sahte mediator, Spring açılmadan): tüm parametrelerin isteğe aktarılması ve sayfalı JSON biçimi, parametresiz varsayılanlar, bilinmeyen durum ve hatalı tarih biçimi için 400.
+- `./mvnw verify`: 174 test, 0 hata (15 yeni).
+**Karşılaştığım sorun ve çözümü:**
+- Branch #99 birleşmeden önce açıldığı için rapor dosyasında #99'un bölümü yoktu → güncel `dev` branch'e birleştirildi (`git merge origin/dev`), rapor bölümü #99'un bölümünün arkasına eklendi; böylece birleştirmede çakışma çıkmadı.
+**Sunumda anlatacağım tek cümle:**
+İK'nın şirket izin geçmişi beş isteğe bağlı filtreyle tek bir dinamik sorguda aranıyor; ilişkiler join ile geldiği için sayfa ne kadar büyük olursa olsun en fazla iki SQL çalışıyor.
