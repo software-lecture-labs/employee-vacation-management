@@ -12,6 +12,10 @@ import jakarta.persistence.Table;
  * <p>{@code code} değişmez (ANNUAL, EXCUSE, SICK, UNPAID): ad değişse bile kod aynı
  * kalır ve hak ediş yıllık izni koduyla bulur. Bu yüzden setter'ı yoktur ve sütun
  * {@code updatable = false} ile güncellemeye kapalıdır.
+ *
+ * <p>{@code deductsFromBalance} de oluşturulduktan sonra değişmez: onaylanmış ve
+ * bakiyeden düşülmüş bir iznin türü sonradan "düşmez" yapılırsa, iptalde
+ * {@code LeaveBalanceService.refund} hiçbir şey yapmaz ve düşülen günler iade edilmez.
  */
 @Entity
 @Table(name = "leave_types")
@@ -58,10 +62,6 @@ public class LeaveType extends BaseEntity {
 
     public boolean isDeductsFromBalance() {
         return deductsFromBalance;
-    }
-
-    public void setDeductsFromBalance(boolean deductsFromBalance) {
-        this.deductsFromBalance = deductsFromBalance;
     }
 
     public BigDecimal getAnnualLimitDays() {
