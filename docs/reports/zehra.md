@@ -200,3 +200,81 @@ README, hocanın ders kriterlerinin her biri için bir başlıkla ilk günden re
 - Dokümandaki yaş kuralı, 1 yılını doldurmamış 50 yaş üstü çalışan için açık değildi → kanundaki sıraya göre yorumlandı, kararı bir test satırıyla sabitledim ve PR açıklamasına yazdım.
 **Sunumda anlatacağım tek cümle:**
 Yıllık izin hakkı kanundaki kademelerin basitleştirilmiş hâliyle tek bir politika sınıfında hesaplanıyor; kural değişirse yeni bir politika takılıyor, çalışan ekleme ve yıllık hak ediş kodu değişmiyor.
+
+## 20 Kasım 2026 — feat(balance): bakiye servisi ve hareket kaydı (#97)
+**İlgili gereksinimler:** FR-32, FR-35 · BR-03, BR-05 · T1, T2, T3, T4 (kullanacak olanlar) · Issue #33
+**Use case(ler):** Yok (alan servisi; `SubmitLeave`, `ApproveLeave` (T1), `CancelLeave` ve `ApproveLeaveCancellation` (T2), `CreateEmployee` (T4) ve `RunAnnualAccrual` (T3) tarafından kullanılacak)
+**Ne yaptım:**
+- `domain/model/LeaveBalance`: `requireAvailable(gün)`, `use(gün)` ve `restore(gün)` metotları. Yetmeyen bakiyede "Yetersiz izin bakiyesi: talep 5 gün, kalan 3 gün." mesajıyla `InsufficientBalanceException` (422); kullanılandan fazla iadede `IllegalStateException`. Gün alanlarına setter eklenmedi.
+- `domain/service/LeaveBalanceService` (`@Service`):
+  - `checkSufficient(çalışan, tür, yıl, gün)`: talep açılırken bakiye kontrolü, hiçbir şey yazmaz.
+  - `deduct(talep, işlemi yapan)`: onayda kullanılan günü artırır, DEDUCTION hareketi yazar.
+  - `refund(talep, işlemi yapan)`: iptalde günü iade eder, REFUND hareketi yazar.
+  - `openBalance(çalışan, tür, yıl, hak, işlemi yapan)`: yeni çalışan ve yeni yıl için bakiye açar, gün > 0 ise ACCRUAL hareketi yazar; aynı yıl için ikinci bakiye `DUPLICATE_VALUE` (409).
+- `LeaveBalanceRepository`: `findByEmployeeAndLeaveTypeAndYear` ve `existsByEmployeeAndLeaveTypeAndYear` (metot adından üretilen sorgular).
+- İmzaları PR'dan önce Bilge ve Sude'ye ilettim; planda öngörülen imza görüşmesi yapılmamıştı.
+- Değişiklikleri 3 commit'e böldüm (entity kuralları, servis, testler); PR şablonuna göre açıklama yazdım, `Closes #33` ve `modul:bakiye-gecmis` etiketi ekledim.
+**Validator'a koyduğum kurallar:**
+- Yok (use case yok).
+**Handler'daki kurallar ve transaction:**
+- Servis kendi transaction'ını açmaz: `@Transactional(propagation = MANDATORY)`. Çağıran Handler'ın transaction'ına katılır; transaction yoksa Spring hemen `IllegalTransactionStateException` fırlatır. Böylece bakiye düşümü ile talebin durum değişikliği ayrı ayrı kaydedilemez (T1, T2).
+- Servisin fırlattığı hata Handler'ın transaction'ını geri aldırır: yetersiz bakiyede ne bakiye ne hareket ne de talep durumu değişir (rollback senaryosu A'nın dayanağı).
+**Neden böyle yaptım (tasarım kararları):**
+- `MANDATORY`, `REQUIRED` yerine: ilk önerimde `REQUIRED` vardı; planın katman tablosundaki "alan katmanı kendi transaction'ını açmaz" kuralına göre düzelttim. `REQUIRED` transaction yoksa yenisini açardı; `@Transactional` unutulmuş bir Handler'da bakiye düşer ama talep PENDING kalabilirdi. `MANDATORY` bu hatayı sessizce kabul etmek yerine ilk testte gösteriyor.
+- BR-05 entity'de (zengin alan modeli): bakiyenin negatife düşmemesi bakiyenin kendi kuralı; `LeaveBalance`'ı hangi kod değiştirirse değiştirsin kontrolü atlayamıyor. Veritabanındaki `ck_leave_balances_used_days` kısıtı üçüncü savunma hattı.
+- Bakiyeden düşmeyen türlerde (SICK, UNPAID; BR-03) `checkSufficient`, `deduct` ve `refund` hiçbir şey yapmıyor: kural tek yerde, çağıranlar tür kontrolü yazmıyor.
+- `deduct` ve `refund` yılı ve günü talepten alıyor (`startDate`'in yılı, `workingDays`): çağıranın yanlış yıl veya gün vermesi mümkün değil.
+- Hareket notu otomatik ("İzin talebi #12 onaylandı", "İzin talebi #12 iptal edildi", "2026 yılı hak edişi"): FR-35'teki "neden" her kayıtta aynı biçimde.
+- 0 günlük hakta bakiye satırı açılıyor ama hareket yazılmıyor: hareket tablosunda `days > 0` kısıtı var ve kıdemi 0 olan yeni çalışanın yıllık hakkı 0.
+- Arayüz yerine tek sınıf: ikinci bir uygulaması olmayacak; plan da `domain/service` altında tek sınıf tanımlıyor. Mockito sınıfları da taklit edebildiği için Bilge ve Sude'nin testleri etkilenmiyor.
+**Testler:**
+- `LeaveBalanceTest` (10 birim testi, veritabanı yok): düşüm ve iade, bakiyenin tamamını kullanma, yetersiz bakiye ve mesajı, fazla iade, 0/negatif/boş gün.
+- `LeaveBalanceServiceTest` (11 entegrasyon testi, Testcontainers PostgreSQL): her çağrı Handler'ın yapacağı gibi `TransactionTemplate` içinde; sonuç transaction kapandıktan sonra doğrudan tablodan okunuyor.
+  - Hareket tipi, gün, not, talep numarası ve "kim" sütunu doğru yazılıyor.
+  - Yetersiz bakiyede bakiye ve hareket tablosu hiç değişmiyor (rollback).
+  - Bakiye yoksa `LEAVE_BALANCE_NOT_FOUND`; aynı yıl ikinci bakiye `DUPLICATE_VALUE`; SICK ve UNPAID'de hiçbir şey yazılmıyor.
+  - Transaction olmadan çağrı `IllegalTransactionStateException` ile reddediliyor.
+- `./mvnw verify`: 147 test, 0 hata (21 yeni).
+**Karşılaştığım sorun ve çözümü:**
+- İlk önerideki `REQUIRED` planın katman kuralına uymuyordu → kod yazılmadan önce `MANDATORY` olarak düzeltildi ve kullananlara "Handler `@Transactional` olmalı" notu iletildi.
+- PR şablonu ve `CONTRIBUTING.md` henüz birleşmemiş bir branch'te olduğu için önceki PR'larda kullanılmamıştı → bu PR'dan itibaren şablon, `Closes #` satırı ve modül etiketi kullanılıyor. Önceki PR'lara (#1, #5, #6, #7, #8, #96) etiketler sonradan eklendi; biten issue'lar (#9, #10, #17, #21, #26, #27) hangi PR ile tamamlandıkları yazılarak kapatıldı.
+- `Closes #33` issue'yu otomatik kapatmadı, çünkü GitHub bu anahtar kelimeyi yalnızca ana dala (`main`) birleşen PR'larda işletiyor → #33 PR numarası yazılarak elle kapatıldı.
+- PR, rapor commit'i eklenmeden birleşti → bu bölüm bir sonraki PR'ın rapor commit'iyle eklendi.
+**Sunumda anlatacağım tek cümle:**
+Bakiye yalnızca tek bir servisten ve her seferinde hareket kaydıyla değişiyor; servis kendi transaction'ını açmadığı için onay ya da iptal yarıda kalırsa bakiye de geri alınıyor.
+
+## 20 Kasım 2026 — feat(leave-history): izin durum geçmişi servisi (#98)
+**İlgili gereksinimler:** FR-27 · BR-16 · Issue #41
+**Use case(ler):** Yok (alan servisi; onay, red, geri çekme ve iptal Handler'ları ile gece görevi (T5) tarafından kullanılacak)
+**Ne yaptım:**
+- `domain/service/LeaveHistoryService.record(talep, önceki durum, işlemi yapan, not)`: talebin şu anki durumuna geçişi `leave_request_history` tablosuna yazıyor ve kaydedilen satırı döndürüyor.
+  - Yeni durum parametre olarak verilmiyor, talebin o anki durumundan okunuyor.
+  - Önceki durum boşsa talep yeni açılmıştır (boş → PENDING); işlemi yapan boşsa işlem sistemindir (gece görevi).
+  - Durum değişmemişse, yeni olmayan bir talepte önceki durum boşsa ya da not 500 karakteri aşarsa `IllegalArgumentException`.
+  - Not baştaki ve sondaki boşluklardan arındırılıyor; boş not `null` olarak saklanıyor.
+  - Zaman `Clock` bean'inden alınıyor (`OffsetDateTime.now(clock)`).
+- Handler'da kullanım örneğini javadoc'a ve PR açıklamasına yazdım: geçiş metodundan önce eski durum alınır, geçişten sonra servis çağrılır.
+- Değişiklikleri 2 commit'e böldüm (servis, testler); commit'lerin `Refs` satırına ilk kez issue numarasını (#41) yazdım. PR'ı rapor commit'i eklenmeden birleşmesin diye taslak (draft) olarak açtım.
+**Validator'a koyduğum kurallar:**
+- Yok (use case yok).
+**Handler'daki kurallar ve transaction:**
+- Servis kendi transaction'ını açmıyor (`@Transactional(propagation = MANDATORY)`), bakiye servisiyle aynı kural. Handler'ın transaction'ına katılıyor; transaction yoksa `IllegalTransactionStateException`.
+- Kayıt `saveAndFlush` ile yazılıyor: INSERT o anda veritabanına gidiyor. Geçmiş yazılamazsa hata Handler'ın transaction'ını geri aldırıyor ve durum değişikliği de kayboluyor (BR-16).
+**Neden böyle yaptım (tasarım kararları):**
+- Yeni durumun talepten okunması: çağıranın yanlış "yeni durum" yazması imkânsız; Bilge'nin durum geçiş metotlarından sonra çağrılma düzenine de uyuyor.
+- `save` yerine `saveAndFlush`: JPA normalde INSERT'leri transaction sonuna kadar bekletiyor. Plan 8.1'deki rollback senaryosu B'nin anlamlı olması için veritabanına gerçekten bir INSERT gitmiş ve geri alınmış olmalı; `saveAndFlush` bunu sağlıyor. Bedeli: her kayıtta veritabanına hemen bir istek gidiyor; talep başına bir satır olduğu için önemsiz.
+- Önceki durumun boş olabilmesi: tablo buna izin veriyor (`from_status` boş olabilir); talebin açılışı da geçmişte görünürse İK'nın şirket izin geçmişi aramasında (#52) talebin tüm hayatı izlenebiliyor.
+- İşlemi yapanın boş olabilmesi: gece görevi bir kişi değil; `actor_id` sütunu boş olabiliyor.
+- Durum değişmemişse hata: geçiş metodu çağrılmadan geçmiş yazılmasını, yani bir programlama hatasını hemen yakalıyor.
+**Testler:**
+- `LeaveHistoryServiceTest` (8 birim testi, Mockito ile sahte repository ve `Clock.fixed` ile sabit saat; projede ilk Mockito kullanımı): geçişin tüm alanlarıyla yazılması ve `saveAndFlush` çağrısı, yeni talep, sistem işlemi, not temizleme, uzun not, durumun değişmemesi, yeni olmayan talepte boş önceki durum, boş talep.
+- `LeaveHistoryServiceIntegrationTest` (4 test, Testcontainers PostgreSQL):
+  - Satırın talep, önceki/yeni durum, işlemi yapan, not ve zaman sütunları doğru yazılıyor.
+  - INSERT transaction bitmeden veritabanında görünüyor (`saveAndFlush`'ın kanıtı).
+  - Geçmiş yazıldıktan sonra sonraki adım hata verirse geçmiş satırı kalmıyor (BR-16).
+  - Transaction olmadan çağrı reddediliyor.
+- `./mvnw verify`: 159 test, 0 hata (12 yeni).
+**Karşılaştığım sorun ve çözümü:**
+- Önceki PR (#97) rapor commit'i eklenmeden birleşmişti → bu PR taslak (draft) olarak açıldı ve rapor commit'i eklenmeden incelemeye açılmadı; #97'nin bölümü de bu rapor commit'inde.
+**Sunumda anlatacağım tek cümle:**
+Talebin her durum değişikliği aynı transaction'da ve hemen veritabanına yazılıyor; geçmiş yazılamazsa onay ya da iptal de geri alınıyor, yani geçmişi eksik bir talep olamıyor.
