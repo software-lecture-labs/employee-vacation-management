@@ -18,4 +18,13 @@ public interface LeaveTypeRepository extends JpaRepository<LeaveType, Long> {
      * Spring Data sorguyu metot adından üretir: {@code where code = ?}.
      */
     Optional<LeaveType> findByCode(String code);
+
+    /** Yeni türün kodu kullanılıyor mu ({@code uq_leave_types_code}). */
+    boolean existsByCode(String code);
+
+    /** Yeni türün adı kullanılıyor mu ({@code uq_leave_types_name}). */
+    boolean existsByName(String name);
+
+    /** Güncellenen türün yeni adı başka bir türde kullanılıyor mu. */
+    boolean existsByNameAndIdNot(String name, Long id);
 }
