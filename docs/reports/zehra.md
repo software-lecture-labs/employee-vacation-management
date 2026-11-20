@@ -278,3 +278,43 @@ Bakiye yalnızca tek bir servisten ve her seferinde hareket kaydıyla değişiyo
 - Önceki PR (#97) rapor commit'i eklenmeden birleşmişti → bu PR taslak (draft) olarak açıldı ve rapor commit'i eklenmeden incelemeye açılmadı; #97'nin bölümü de bu rapor commit'inde.
 **Sunumda anlatacağım tek cümle:**
 Talebin her durum değişikliği aynı transaction'da ve hemen veritabanına yazılıyor; geçmiş yazılamazsa onay ya da iptal de geri alınıyor, yani geçmişi eksik bir talep olamıyor.
+
+## 20 Kasım 2026 — feat(leave-type): izin türü listeleme, ekleme ve güncelleme (#99)
+**İlgili gereksinimler:** FR-12, FR-13 · Issue #25 (İK kısıtı eklenince kapanacak)
+**Use case(ler):** `ListLeaveTypes`, `CreateLeaveType`, `UpdateLeaveType`
+**Ne yaptım:**
+- `GET /api/leave-types` (200): aktif ve pasif tüm izin türleri, id sırasıyla; hazır 4 tür (FR-13) dahil.
+- `POST /api/leave-types` (201 + `Location` başlığı): yeni tür aktif olarak kaydediliyor.
+- `PUT /api/leave-types/{id}` (200): yalnızca ad, yıllık sınır ve aktiflik değişebiliyor; yoldaki id gövdedeki id'yi eziyor (`withId`).
+- `application/common/view/LeaveTypeView` ve `mapper/LeaveTypeMapper`: cevaplar entity değil görünüm taşıyor.
+- `api/LeaveTypeController`: projedeki ilk Controller'lardan; isteği Request record'una çevirip `mediator.send()` çağırıyor, iş kuralı içermiyor.
+- `LeaveTypeRepository`: `existsByCode`, `existsByName`, `existsByNameAndIdNot`.
+- `LeaveType.setDeductsFromBalance` kaldırıldı.
+- Değişiklikleri 6 commit'e böldüm (görünüm ve eşleyici, listeleme, ekleme, güncelleme, Controller, testler); PR'ı taslak olarak açtım.
+**Validator'a koyduğum kurallar:**
+- İstek anotasyonları (400): kod zorunlu, büyük harfle başlar, yalnızca büyük harf ve alt çizgi, 2–30 karakter (`MARRIAGE_LEAVE`); ad zorunlu, en fazla 50; yıllık sınır 0–365, en fazla bir ondalık; bakiyeden düşme ve aktiflik bilgisi zorunlu.
+- `CreateLeaveTypeValidator` (400): bakiyeden düşmeyen türde yıllık sınır boş olmalı.
+**Handler'daki kurallar ve transaction:**
+- `CreateLeaveTypeHandler` (`@Transactional`): aynı kod ya da ad varsa `DUPLICATE_VALUE` (409); ad baştaki ve sondaki boşluklardan arındırılıyor.
+- `UpdateLeaveTypeHandler` (`@Transactional`): tür yoksa `LEAVE_TYPE_NOT_FOUND` (404); ad başka bir türde varsa 409; kayıtlı tür bakiyeden düşmüyorsa ve sınır verildiyse 400 (`ValidationException`).
+- `ListLeaveTypesHandler` (`@Transactional(readOnly = true)`): salt okunur transaction.
+**Neden böyle yaptım (tasarım kararları):**
+- Kuralların yeri plan 8. bölümdeki tabloya göre: tek alanlık kurallar anotasyonda, alanlar arası kural Validator'da, veritabanı gerektiren kurallar Handler'da. Güncellemedeki "düşmeyen türde sınır boş" kuralı türün kayıtlı halini bilmeyi gerektirdiği için Handler'da, ama eklemeyle aynı 400 cevabını veriyor.
+- Tekillik önceden kontrol ediliyor: veritabanının tekil kısıtı da reddederdi, ama o hata 500 "beklenmeyen hata" olarak dönerdi; önceden kontrol edilince anlamlı bir 409 ve mesaj dönüyor.
+- Kod ve "bakiyeden düşer mi" sonradan değişmiyor: kod başka yerlerde kimlik olarak kullanılıyor (hak ediş yıllık izni koduyla buluyor). Bakiyeden düşen bir tür sonradan "düşmez" yapılırsa, onaylanmış bir izin iptal edildiğinde bakiye servisi bu türde iade yapmaz ve düşülmüş günler kaybolur. Kural hem güncelleme isteğinde (alan yok) hem entity'de (setter yok) korunuyor.
+- Pasif türler de listeleniyor: pasif türle talep açılamıyor (talep açma kuralı), ama İK'nın türü yeniden aktif yapabilmesi için listede görmesi gerekiyor.
+- Liste için Validator yazılmadı: doğrulanacak alan yok; mediator Validator'ı olmayan isteği kabul ediyor.
+- İK kısıtı (`@PreAuthorize("hasRole('HR')")`) güvenlik altyapısı henüz `dev`'de olmadığı için eklenmedi; ekleme ve güncelleme şimdilik herkese açık. Güvenlik PR'ı birleşince kısıt ve 403 testleri küçük bir PR ile eklenecek; issue #25 bu yüzden `Refs` ile bağlandı, kapatılmadı.
+**Testler:**
+- `CreateLeaveTypeValidatorTest` (3 birim testi): sınırlı düşen tür, sınırsız düşmeyen tür, sınırlı düşmeyen tür (hata).
+- `LeaveTypeUseCasesIntegrationTest` (11 test, mediator üzerinden, Testcontainers PostgreSQL; anotasyon, Validator, Handler ve veritabanı birlikte):
+  - 4 hazır türün id sırasıyla listelenmesi.
+  - Ekleme; aynı kod (409), aynı ad (409), hatalı kod (400, Handler'a ulaşmadan), düşmeyen türde sınır (400).
+  - Güncelleme: ad, sınır ve aktiflik değişiyor, kod ve bakiye davranışı değişmiyor; aynı adı korumak serbest; bulunamayan tür (404); başka türün adı (409); düşmeyen türde sınır (400).
+- `LeaveTypeControllerTest` (6 test, sahte mediator, Spring açılmadan): 200 ve JSON biçimi, 201 ve `Location`, 400/409/404 hata gövdeleri, yoldaki id'nin gövdedeki id'yi ezmesi.
+- `./mvnw verify`: 179 test, 0 hata (20 yeni).
+**Karşılaştığım sorun ve çözümü:**
+- Güvenlik altyapısı (JWT, roller) planlanan tarihte gelmedi → use case'ler ve endpoint'ler yazıldı, rol kısıtı sonraya bırakıldı.
+- PR yaklaşık 730 satırla önerilen ~400 satır sınırını aştı → commit'ler use case başına bölündü, PR açıklamasına not düşüldü.
+**Sunumda anlatacağım tek cümle:**
+İzin türleri üç ayrı use case olarak yazıldı; her kural kendi katmanında (anotasyon, Validator, Handler) ve bakiye davranışı gibi geçmiş kayıtları bozabilecek alanlar oluşturulduktan sonra değiştirilemiyor.
