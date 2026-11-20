@@ -1,6 +1,9 @@
 package com.dogus.vacation.domain.model;
 
 import java.math.BigDecimal;
+import java.util.Objects;
+
+import com.dogus.vacation.domain.exception.InsufficientBalanceException;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -15,9 +18,12 @@ import org.hibernate.type.SqlTypes;
 /**
  * Bir çalışanın bir izin türündeki yıllık bakiyesi ({@code leave_balances}).
  *
- * <p>Kalan gün saklanmaz, {@link #remainingDays()} ile hesaplanır. Bakiyenin
- * değişmesi (düşüm, iade) ve hareket kaydı {@code LeaveBalanceService}'in işidir;
- * bu yüzden gün alanlarının setter'ı yoktur.
+ * <p>Kalan gün saklanmaz, {@link #remainingDays()} ile hesaplanır. Gün alanlarının
+ * setter'ı yoktur; kullanılan gün yalnızca {@link #use(BigDecimal)} ve
+ * {@link #restore(BigDecimal)} ile değişir, bu metotlar da bakiyenin negatife
+ * düşmemesini (BR-05) kendileri korur. Değişikliğin hareket kaydını
+ * {@code LeaveBalanceService} yazar; entity'yi doğrudan değiştiren kod hareket
+ * kaydını atlamış olur.
  */
 @Entity
 @Table(name = "leave_balances")
@@ -61,6 +67,65 @@ public class LeaveBalance extends BaseEntity {
     /** Kalan gün = hak edilen - kullanılan. */
     public BigDecimal remainingDays() {
         return entitledDays.subtract(usedDays);
+    }
+
+    /**
+     * Talep edilen gün kalan bakiyeye sığmıyorsa hata verir; bakiyeyi değiştirmez.
+     * Talep açılırken (FR-16) ve onayda {@link #use(BigDecimal)} içinde kullanılır.
+     *
+     * @param days talep edilen gün, sıfırdan büyük
+     * @throws InsufficientBalanceException kalan gün yetmiyorsa (BR-05, 422)
+     * @throws IllegalArgumentException     gün sıfır veya negatifse
+     */
+    public void requireAvailable(BigDecimal days) {
+        requirePositive(days);
+        BigDecimal remaining = remainingDays();
+        if (remaining.compareTo(days) < 0) {
+            throw new InsufficientBalanceException("Yetersiz izin bakiyesi: talep "
+                    + plain(days) + " gün, kalan " + plain(remaining) + " gün.");
+        }
+    }
+
+    /**
+     * Bakiyeden gün kullanır (onay, T1).
+     *
+     * @param days kullanılacak gün, sıfırdan büyük
+     * @throws InsufficientBalanceException kalan gün yetmiyorsa; bakiye değişmez
+     * @throws IllegalArgumentException     gün sıfır veya negatifse
+     */
+    public void use(BigDecimal days) {
+        requireAvailable(days);
+        usedDays = usedDays.add(days);
+    }
+
+    /**
+     * Kullanılmış günü bakiyeye geri verir (iptal, T2).
+     *
+     * @param days iade edilecek gün, sıfırdan büyük
+     * @throws IllegalStateException    iade edilecek gün kullanılan günden fazlaysa; bu,
+     *                                  daha önce düşülmemiş bir talebin iade edildiği
+     *                                  anlamına gelir ve bir programlama hatasıdır
+     * @throws IllegalArgumentException gün sıfır veya negatifse
+     */
+    public void restore(BigDecimal days) {
+        requirePositive(days);
+        if (usedDays.compareTo(days) < 0) {
+            throw new IllegalStateException("İade edilecek gün (" + plain(days)
+                    + ") kullanılan günden (" + plain(usedDays) + ") fazla olamaz.");
+        }
+        usedDays = usedDays.subtract(days);
+    }
+
+    private static void requirePositive(BigDecimal days) {
+        Objects.requireNonNull(days, "days");
+        if (days.signum() <= 0) {
+            throw new IllegalArgumentException("Gün sayısı sıfırdan büyük olmalı.");
+        }
+    }
+
+    /** 5.0 → "5", 2.5 → "2.5": mesajda gereksiz ondalık görünmesin. */
+    private static String plain(BigDecimal value) {
+        return value.stripTrailingZeros().toPlainString();
     }
 
     public Employee getEmployee() {
