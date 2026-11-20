@@ -29,6 +29,7 @@
 - Yeni test yok; `./mvnw verify` ile JaCoCo raporunun `target/site/jacoco/` altında oluştuğu doğrulanır.
 **Karşılaştığım sorun ve çözümü:**
 - Bilgisayarımda Docker kurulumu WSL hatası verdi; ayar dosyaları önce hazırlandı, ilk tarama Docker kurulunca yapılacak.
+- 20 Kasım: WSL özellikleri açılıp Docker kuruldu ve ilk tarama yapıldı: Security A, Maintainability A, kapsam %89.7, tekrar %0.0, Quality Gate geçti; Reliability D (`WeekdayWorkingDayCalculator`'da tek uyarı, düzeltme Zehra'ya iletildi). Sonuç README tablosunda, ekran görüntüsü `docs/sonar/` altında (#<PR no>).
 **Sunumda anlatacağım tek cümle:**
 Kod kalitesini ilk günden yerel SonarQube ile ölçtük; her taramanın sonucu README'deki tabloda, kapsamı da JaCoCo her `verify`'da raporluyor.
 **Açık kalanlar:**
