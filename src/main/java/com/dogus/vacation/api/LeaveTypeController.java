@@ -1,0 +1,60 @@
+package com.dogus.vacation.api;
+
+import java.net.URI;
+
+import com.dogus.vacation.application.mediator.Mediator;
+import com.dogus.vacation.application.usecase.leavetype.create.CreateLeaveTypeRequest;
+import com.dogus.vacation.application.usecase.leavetype.create.CreateLeaveTypeResponse;
+import com.dogus.vacation.application.usecase.leavetype.list.ListLeaveTypesRequest;
+import com.dogus.vacation.application.usecase.leavetype.list.ListLeaveTypesResponse;
+import com.dogus.vacation.application.usecase.leavetype.update.UpdateLeaveTypeRequest;
+import com.dogus.vacation.application.usecase.leavetype.update.UpdateLeaveTypeResponse;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * İzin türü endpoint'leri (FR-12, FR-13).
+ *
+ * <p>Controller iş kuralı içermez: isteği Request record'una çevirir, {@link Mediator}'a
+ * verir ve HTTP kodunu seçer. Doğrulama mediator'da, kurallar Handler'dadır.
+ *
+ * <p><b>Yetki:</b> Ekleme ve güncelleme yalnızca İK'ya açık olacak. Güvenlik altyapısı
+ * (JWT, roller) henüz projede olmadığı için {@code @PreAuthorize("hasRole('HR')")}
+ * satırları güvenlik PR'ı birleşince eklenecek (issue #25 o zamana kadar açık kalır).
+ */
+@RestController
+@RequestMapping("/api/leave-types")
+public class LeaveTypeController {
+
+    private final Mediator mediator;
+
+    public LeaveTypeController(Mediator mediator) {
+        this.mediator = mediator;
+    }
+
+    /** Tüm izin türleri (giriş yapmış herkes). */
+    @GetMapping
+    public ListLeaveTypesResponse list() {
+        return mediator.send(new ListLeaveTypesRequest());
+    }
+
+    /** Yeni izin türü (İK). 201 ve yeni kaydın adresi {@code Location} başlığında döner. */
+    @PostMapping
+    public ResponseEntity<CreateLeaveTypeResponse> create(@RequestBody CreateLeaveTypeRequest request) {
+        CreateLeaveTypeResponse response = mediator.send(request);
+        URI location = URI.create("/api/leave-types/" + response.leaveType().id());
+        return ResponseEntity.created(location).body(response);
+    }
+
+    /** İzin türünün adı, yıllık sınırı ve aktifliği (İK). Kod ve bakiye davranışı değişmez. */
+    @PutMapping("/{id}")
+    public UpdateLeaveTypeResponse update(@PathVariable Long id, @RequestBody UpdateLeaveTypeRequest request) {
+        return mediator.send(request.withId(id));
+    }
+}
