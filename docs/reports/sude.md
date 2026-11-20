@@ -33,3 +33,30 @@
 Kod kalitesini ilk günden yerel SonarQube ile ölçtük; her taramanın sonucu README'deki tabloda, kapsamı da JaCoCo her `verify`'da raporluyor.
 **Açık kalanlar:**
 - İlk tarama (temel çizgi) ve sonucun README tablosuna eklenmesi.
+
+## 20 Kasım 2026 — feat(department): departmanları sayfalı listelemeyi ekle (#<PR no>)
+**İlgili gereksinimler:** FR-10 (listeleme; ekleme ve güncelleme ayrı PR'da), NFR-01, NFR-07
+**Use case(ler):** `ListDepartments`
+**Ne yaptım:**
+- `GET /api/departments?page&size`: departmanlar ada göre sıralı, varsayılan 20 kayıtlık sayfalarla döner.
+- `ListDepartmentsRequest` (sayfalama sınırları anotasyonla), `ListDepartmentsHandler` (`@Transactional(readOnly = true)`), `DepartmentController`.
+- Ortak `DepartmentView` ve `DepartmentMapper`: ekleme ve güncelleme cevapları da aynı görünümü kullanacak.
+**Validator'a koyduğum kurallar:**
+- Ayrı Validator yok; `page ≥ 0` ve `size` 1–100 kuralları istek record'undaki anotasyonlarla mediator'da denetleniyor (alanlar arası kural yok).
+**Handler'daki kurallar ve transaction:**
+- Salt okunur transaction; sıralama `name`, ardından `id` (aynı sayfa her istekte aynı sırada gelsin diye).
+**Neden böyle yaptım (tasarım kararları):**
+- Cevap ayrı bir Response record'u değil, ortak `PageResponse<DepartmentView>`: Zehra'nın geçmiş araması da sayfalı listeyi böyle dönüyor, istemci bütün sayfalı adreslerde aynı JSON'u görüyor.
+- Spring'in `Page` nesnesi dışarı verilmiyor; JSON biçimi Spring sürümüne bağlı kalmıyor.
+- Controller'da iş kuralı yok: sadece isteği kurup `mediator.send(...)` diyor.
+**Testler:**
+- `ListDepartmentsHandlerTest` — repository'ye doğru sayfa ve sıralamanın gitmesi, view'a çevirme (Mockito)
+- `ListDepartmentsRequestTest` — boş sayfalamada 0. sayfa ve 20 kayıt
+- `DepartmentControllerTest` — 200, sorgu parametreleri ve 400 hata biçimi (MockMvc)
+- `ListDepartmentsIntegrationTest` — gerçek PostgreSQL ile ada göre sıra, ikinci sayfa ve geçersiz sayfalamada 400
+**Karşılaştığım sorun ve çözümü:**
+- Güvenlik altyapısı henüz dev'de olmadığı için "giriş yapmış herkes" kontrolü eklenemedi; güvenlik PR'ı birleşince eklenecek.
+**Sunumda anlatacağım tek cümle:**
+Departman listesi Controller → Mediator → Handler → Repository yolunu en sade haliyle gösteren referans use case'tir; sayfalama ve hata biçimi bütün listelerle aynıdır.
+**Açık kalanlar:**
+- Kimlik kontrolü (güvenlik PR'ından sonra), Swagger örnekleri (24 Kasım).
