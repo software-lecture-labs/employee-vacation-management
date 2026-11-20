@@ -66,3 +66,38 @@ Controller sadece `mediator.send(request)` der; doğrulama ve doğru Handler'ı 
 Her use case dört dosya; şablon sayesinde ekipteki herkes bunları aynı düzenle tek adımda oluşturuyor.
 **Açık kalanlar:**
 - Şablonu ekipteki diğer üç kişinin de IntelliJ'ine eklemesi gerekiyor.
+
+## 20 Kasım 2026 — feat(error-handling): ortak hata yönetimi (#93)
+**İlgili gereksinimler:** NFR-05 · FR-16, FR-17, FR-24, NFR-08 için hata kodları hazırlandı (kuralların kendisi kendi PR'larında)
+**Use case(ler):** Yok (altyapı). Sınıflar: `ErrorCategory`, `ErrorCode`, `BusinessException`, `NotFoundException`, `ForbiddenActionException`, `InvalidStateTransitionException`, `InsufficientBalanceException`, `ErrorResponse`, `GlobalExceptionHandler`
+**Ne yaptım:**
+- `ErrorCode`: her alan hatasının sabit kodu, türü (`ErrorCategory`) ve Türkçe varsayılan mesajı; örneğin `INSUFFICIENT_BALANCE`, `LEAVE_REQUEST_NOT_FOUND`, `SELF_APPROVAL_NOT_ALLOWED`.
+- `BusinessException` ve plandaki alt sınıfları: `NotFoundException` (404), `ForbiddenActionException` (403), `InvalidStateTransitionException` (409), `InsufficientBalanceException` (422). Alt sınıflar yanlış türde bir kodla oluşturulamıyor.
+- `ErrorResponse`: plandaki tek JSON biçimi (`timestamp`, `status`, `code`, `message`, `path`, `fieldErrors`).
+- `GlobalExceptionHandler`: `ValidationException` → 400 ve `fieldErrors`; `BusinessException` → türüne göre 404/403/409/422; iyimser kilit çatışması → 409 `CONCURRENT_UPDATE`; beklenmeyen hata → 500 ve genel mesaj. Bozuk JSON ve yanlış HTTP metodu gibi Spring MVC hataları da aynı biçimde dönüyor.
+**Validator'a koyduğum kurallar:**
+- Yok
+**Handler'daki kurallar ve transaction:**
+- Alan hataları `RuntimeException`'dan türüyor; Handler'dan çıkınca transaction geri alınıyor. Handler içinde yakalanıp yutulmamaları gerektiği sınıfın açıklamasında yazıyor.
+**Neden böyle yaptım (tasarım kararları):**
+- Alan katmanı HTTP kodu bilmiyor, sadece hatanın türünü (`ErrorCategory`) biliyor; tür → HTTP kodu eşlemesi tek yerde, `GlobalExceptionHandler`'da. İleride gRPC aynı türleri kendi durum kodlarına çevirebilir.
+- Yeni bir iş kuralı için `ErrorCode`'a bir sabit eklemek yetiyor; `GlobalExceptionHandler` değişmiyor (Open/Closed).
+- 500'de ayrıntı sadece loga yazılıyor (SLF4J), istemciye stack trace veya sınıf adı gitmiyor (NFR-05).
+- Zaman damgası `Clock` bean'inden geliyor; testte sabit saatle doğrulanabiliyor.
+- `@PreAuthorize`'dan gelen Spring Security hataları bilerek yakalanmıyor; 401/403'ü Security üretiyor, yoksa 500'e dönüşürlerdi.
+**Testler:**
+- `BusinessExceptionTest` — varsayılan ve ayrıntılı mesaj, boş kod, her kodun türü ve Türkçe mesajı, alt sınıfların yanlış kodu reddetmesi
+- `GlobalExceptionHandlerTest.validationExceptionBecomes400WithFieldErrors` — 400 ve alan hataları
+- `GlobalExceptionHandlerTest.businessExceptionStatusFollowsItsCategory` — 404, 403, 409, 422
+- `GlobalExceptionHandlerTest.detailedBusinessMessageIsReturned` — "talep 5 gün, kalan 3 gün" mesajı aynen dönüyor
+- `GlobalExceptionHandlerTest.optimisticLockConflictBecomes409` — eşzamanlı güncelleme 409
+- `GlobalExceptionHandlerTest.unexpectedErrorHidesDetails` — 500'de hata ayrıntısı cevaba girmiyor
+- `GlobalExceptionHandlerTest.malformedJsonBecomes400InSameFormat`, `wrongHttpMethodBecomes405InSameFormat` — Spring MVC hataları aynı biçimde
+- `GlobalExceptionHandlerTest.timestampComesFromClock` — zaman damgası `Clock`'tan
+**Karşılaştığım sorun ve çözümü:**
+- Yok
+**Sunumda anlatacağım tek cümle:**
+Handler sadece "bakiye yetersiz" der, hangi HTTP koduyla ve hangi JSON'la döneceğine tek bir sınıf karar verir; bu yüzden bütün hatalar aynı biçimde döner.
+**Açık kalanlar:**
+- 401 ve rol kaynaklı 403 cevaplarının da aynı JSON biçiminde dönmesi Onur'un güvenlik ayarında (`AuthenticationEntryPoint`, `AccessDeniedHandler`) yapılmalı; `ErrorResponse` kullanılabilir.
+- Swagger'daki hata örnekleri 24 Kasım'da eklenecek.
