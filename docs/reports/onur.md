@@ -1,13 +1,13 @@
 # Çalışma Raporu: Onur
 
-- **GitHub:** @<kullanıcı-adı>
+- **GitHub:** @onurkya5149
 - **Modül:** Kimlik, güvenlik ve iptal süresi (`auth`, `security`; `leave-cancellation` içinde gece görevi ve acil uyarısı)
 - **Sorumlu olduğum gereksinimler:** FR-01, FR-02, FR-03, FR-04, FR-11, FR-30, FR-31 · bonus FR-05 · BR-10, BR-18 · NFR-04 · T5
 - **Altyapı işleri:** proje iskeleti, CI, Dockerfile ve compose, Swagger ayarı, `CONTRIBUTING.md` ve şablonlar, tüm endpoint'lerin yetki testleri
 
 ---
 
-## 17 Kasım 2026 — chore(skeleton): proje iskeleti, profiller ve Supabase bağlantısı (#<PR no>)
+## 17 Kasım 2026 — chore(skeleton): proje iskeleti, profiller ve Supabase bağlantısı (#2)
 **İlgili gereksinimler:** NFR-01, NFR-04, NFR-09 (doğrudan bir FR karşılanmadı; bütün FR'ler bu iskeletin üzerine yazılacak)
 **Use case(ler):** Yok (altyapı)
 **Ne yaptım:**
@@ -41,7 +41,7 @@ Proje ilk günden çalıştırılabilir WAR olarak kuruldu; aynı dosya gömül�
 - `@EnableScheduling` ve test profilinde kapatılması gece göreviyle (FR-31) gelecek.
 - Güvenlik (`SecurityConfig`, JWT) ve Swagger'da "Authorize" kimlik doğrulama PR'ında.
 
-## 17 Kasım 2026 — docs(contributing): katkı kuralları, şablonlar ve gereksinim listesi (#<PR no>)
+## 17 Kasım 2026 — docs(contributing): katkı kuralları, şablonlar ve gereksinim listesi (#3, dev'e #103 ile)
 **İlgili gereksinimler:** Doğrudan bir FR/BR karşılanmadı; bu PR bütün kodların sözlüğünü (`docs/REQUIREMENTS.md`) ve commit/PR kurallarını getiriyor.
 **Use case(ler):** Yok (doküman ve ayar dosyaları)
 **Ne yaptım:**
@@ -68,7 +68,7 @@ Commit, branch ve PR kurallarımızı `CONTRIBUTING.md`'ye yazdık; her commit'i
 - README'deki `docs/REQUIREMENTS.md` linki Zehra'nın README iskeleti PR'ında geliyor.
 - Branch koruması ve "Rebase and merge" ayarı repo yöneticisinin yetkisinde; rica edilecek.
 
-## 17 Kasım 2026 — ci(ci): GitHub Actions ile derleme ve testler (#<PR no>)
+## 17 Kasım 2026 — ci(ci): GitHub Actions ile derleme ve testler (#4, dev'e #103 ile)
 **İlgili gereksinimler:** NFR-03 (testlerin her PR'da koşması), NFR-04 (iş akışı gizli değer kullanmıyor)
 **Use case(ler):** Yok (altyapı)
 **Ne yaptım:**
@@ -91,3 +91,26 @@ Commit, branch ve PR kurallarımızı `CONTRIBUTING.md`'ye yazdık; her commit'i
 Her PR birleşmeden önce GitHub Actions'ta derleniyor ve bütün testler gerçek bir PostgreSQL'e karşı koşuyor; kırmızı PR birleşmiyor.
 **Açık kalanlar:**
 - Branch korumasında "CI yeşil" şartının açılması repo yöneticisinin yetkisinde.
+
+## 22 Kasım 2026 — docs(contributing): katkı kuralları ve CI'ı dev'e taşı (#103)
+**İlgili gereksinimler:** NFR-01, NFR-03 (kurallar ve CI ilk kez dev'de)
+**Use case(ler):** Yok
+**Ne yaptım:**
+- #3 ve #4'ün 8 commit'ini güncel `dev`'in üzerine taşıdım; içerik değişmedi.
+- `CONTRIBUTING.md`: base'i `dev` olmayan PR birleştirilmez; zincirli PR'da önce rebase ve base değişimi.
+- `CONTRIBUTING.md` ve PR şablonu: `dev`'e birleşen PR issue'yu kapatmadığı için issue elle kapatılır.
+- Bu rapordaki PR numaralarını ve GitHub kullanıcı adını doldurdum.
+**Validator'a koyduğum kurallar:**
+- Yok (kod yok)
+**Handler'daki kurallar ve transaction:**
+- Yok
+**Neden böyle yaptım (tasarım kararları):**
+- #3 ve #4 zincirli açılmıştı ve base'leri `dev`'e çevrilmeden birleştirildi; değişiklikler önceki branch'lerde kaldı, `dev`'e ulaşmadı. Aynı hata tekrarlanmasın diye kural `CONTRIBUTING.md`'ye yazıldı.
+**Testler:**
+- Yok (sadece doküman ve CI dosyası). CI iş akışı bu PR'da ilk kez gerçek projede çalışıyor.
+**Karşılaştığım sorun ve çözümü:**
+- Sorun: kurallar, şablonlar ve CI 5 gün boyunca `dev`'de yoktu; ekip PR şablonunu ve `REQUIREMENTS.md`'yi kullanamadı. Çözüm: commit'ler `dev`'in üzerine yeniden uygulandı ve yeni PR ile birleştirildi.
+**Sunumda anlatacağım tek cümle:**
+Zincirli PR'larda base'in `dev`'e çevrilmesi unutulunca değişiklik ana dala ulaşmadı; bunu fark edip düzelttik ve kuralı CONTRIBUTING'e ekledik.
+**Açık kalanlar:**
+- Ekip üyeleri birleşmiş gereksinimlerini sonraki PR'larında `REQUIREMENTS.md`'de ✅ yapacak.
