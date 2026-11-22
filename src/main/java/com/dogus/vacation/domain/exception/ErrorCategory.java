@@ -8,6 +8,9 @@ package com.dogus.vacation.domain.exception;
  */
 public enum ErrorCategory {
 
+    /** Kimlik doğrulanamadı: giriş bilgileri hatalı ya da token yok/geçersiz (REST: 401). */
+    UNAUTHENTICATED,
+
     /** Aranan kayıt yok (REST: 404). */
     NOT_FOUND,
 

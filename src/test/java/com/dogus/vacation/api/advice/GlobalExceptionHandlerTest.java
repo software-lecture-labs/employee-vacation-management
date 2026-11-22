@@ -68,6 +68,7 @@ class GlobalExceptionHandlerTest {
 
     @ParameterizedTest(name = "{0} → {1}")
     @CsvSource({
+            "INVALID_CREDENTIALS,       401",
             "LEAVE_REQUEST_NOT_FOUND,   404",
             "SELF_APPROVAL_NOT_ALLOWED, 403",
             "INVALID_STATUS_TRANSITION, 409",
