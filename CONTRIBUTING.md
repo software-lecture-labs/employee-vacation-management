@@ -151,12 +151,14 @@ Refs: #23 · FR-21, BR-05
 
 - **Başlık**: commit başlığıyla aynı biçim, işin bütününü anlatır: `feat(leave-approval): izin onayı ve bakiye düşümü`.
 - **Base**: her zaman `dev`. Sadece sürüm PR'ları `dev → main` yönündedir.
+- **Birbirine bağlı PR'lar**: Bir branch başka bir açık PR'ın branch'i üzerine kurulduysa PR'ın base'i geçici olarak o branch olabilir; ama **birleştirmeden önce base mutlaka `dev`'e çevrilir** (önceki PR birleşince `git rebase origin/dev` + `git push --force-with-lease`). Base'i `dev` olmayan PR birleştirilmez; aksi halde değişiklik `dev`'e hiç ulaşmaz.
 - **Boyut**: en fazla ~400 satır değişiklik; büyükse bölünür. İş yarımken görünürlük için Draft PR açılabilir.
 - **Açıklama**: [`.github/pull_request_template.md`](.github/pull_request_template.md) şablonu doldurulur.
 - **İnceleme sırası**: Onur'un PR'ını Sude, Sude'ninkini Bilge, Bilge'ninkini Zehra, Zehra'nınkini Onur inceler. Veritabanına dokunan her PR'a ayrıca Zehra eklenir (`CODEOWNERS` bunu otomatik yapar).
 - **İnceleme süresi**: en geç 4 saat. İnceleyen en az bir anlamlı yorum ya da "Onay: şunları kontrol ettim …" yazar; boş onay verilmez.
 - **Düzeltmeler** yeni commit olarak gelir ve onlar da kurala uyar: `refactor(leave-approval): bakiye kontrolünü ayrı metoda taşı`.
-- **Birleştirme**: CI yeşil + onay sonrası PR sahibi "Rebase and merge" yapar ve branch'i siler; issue `Closes #` ile otomatik kapanır.
+- **Birleştirme**: CI yeşil + onay sonrası PR sahibi base'in `dev` olduğunu kontrol eder, "Rebase and merge" yapar ve branch'i siler.
+- **Issue'yu kapatma**: GitHub `Closes #` anahtar kelimesini yalnızca varsayılan dala (`main`) birleşen PR'larda işletir; `dev`'e birleşen PR issue'yu kapatmaz. PR birleşince issue elle kapatılır ve PR numarası yazılır: "#97 ile tamamlandı." `Closes #` satırı yine yazılır: sürüm PR'ı `main`'e geçtiğinde bağlantıyı gösterir.
 - **Gereksinim ve rapor**: PR'ın son commit'i rapor commit'idir (`docs(report): izin onayı raporunu ekle, gereksinimi işaretle`). Bu commit'te `docs/reports/<ad>.md`'ye bölüm eklenir ve [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md)'de karşılanan satırlar ⬜'dan ✅'a çevrilip PR numarası yazılır. Ayrı PR açılmaz.
 - **Sürüm PR'ları** (`dev → main`): 16 Kasım `v0.1-setup` (Onur), 24 Kasım `v0.5-features` (Sude), 26 Kasım `v0.9-quality` (Bilge), 30 Kasım `v1.0` (Zehra). Başlık `release: v0.5-features`, açıklamada o sürümde kapanan FR listesi; "Create a merge commit" ile birleştirilir ve etiketlenir.
 
