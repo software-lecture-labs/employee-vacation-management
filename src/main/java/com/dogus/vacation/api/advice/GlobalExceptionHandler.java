@@ -30,13 +30,16 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
  * <p>Hata türü → HTTP kodu eşlemesi sadece bu sınıftadır; alan katmanı HTTP bilmez.
  * <ul>
  *   <li>{@link ValidationException} → 400, {@code VALIDATION_FAILED} ve {@code fieldErrors}</li>
- *   <li>{@link BusinessException} → türüne göre 404 / 403 / 409 / 422, kod = {@link ErrorCode} adı</li>
+ *   <li>{@link BusinessException} → türüne göre 401 / 404 / 403 / 409 / 422, kod = {@link ErrorCode} adı
+ *       (401: hatalı giriş bilgileri, {@code INVALID_CREDENTIALS})</li>
  *   <li>İyimser kilit çatışması → 409, {@code CONCURRENT_UPDATE} (NFR-08)</li>
  *   <li>Spring MVC hataları (bozuk JSON, yanlış metot, yanlış içerik tipi) → kendi kodları</li>
  *   <li>Beklenmeyen her şey → 500, genel mesaj; ayrıntı sadece loga yazılır</li>
  * </ul>
  *
- * <p>401 ve 403 rol hataları Spring Security filtresinde oluşur ve buraya gelmez;
+ * <p>Token yok/geçersiz (401) ve rol yetkisi yok (403) hataları Spring Security filtresinde
+ * oluşur ve buraya gelmez; aynı JSON biçimini {@code infrastructure.security} paketindeki
+ * {@code RestAuthenticationEntryPoint} ve {@code RestAccessDeniedHandler} üretir;
  * {@code @PreAuthorize}'dan gelen Spring Security hataları da bilerek yakalanmaz,
  * Security'nin kendi akışına bırakılır.
  */
@@ -126,6 +129,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     static HttpStatusCode statusOf(ErrorCategory category) {
         return switch (category) {
+            case UNAUTHENTICATED -> HttpStatus.UNAUTHORIZED;
             case NOT_FOUND -> HttpStatus.NOT_FOUND;
             case FORBIDDEN -> HttpStatus.FORBIDDEN;
             case CONFLICT -> HttpStatus.CONFLICT;

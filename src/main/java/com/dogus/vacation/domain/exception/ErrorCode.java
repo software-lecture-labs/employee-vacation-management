@@ -10,6 +10,11 @@ package com.dogus.vacation.domain.exception;
  */
 public enum ErrorCode {
 
+    // 401
+    INVALID_CREDENTIALS(ErrorCategory.UNAUTHENTICATED, "E-posta veya şifre hatalı."),
+    AUTHENTICATION_REQUIRED(ErrorCategory.UNAUTHENTICATED,
+            "Bu işlem için giriş yapılmalı; token eksik, geçersiz veya süresi dolmuş."),
+
     // 404
     EMPLOYEE_NOT_FOUND(ErrorCategory.NOT_FOUND, "Çalışan bulunamadı."),
     DEPARTMENT_NOT_FOUND(ErrorCategory.NOT_FOUND, "Departman bulunamadı."),
