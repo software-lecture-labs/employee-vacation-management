@@ -6,7 +6,7 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 - ⬜ henüz karşılanmadı · ✅ karşılandı (kod `dev`'e birleşti, testi var, Swagger'da çalışıyor)
 - Bir satır yalnızca onu karşılayan PR birleştiğinde, o PR'ın son commit'inde ✅ yapılır ve PR numarası yazılır.
 
-**Özet:** Zorunlu FR 0 / 34 · Bonus FR 0 / 4 · İş kuralı 0 / 18 · Kalite gereksinimi 0 / 11
+**Özet:** Zorunlu FR 5 / 34 · Bonus FR 0 / 4 · İş kuralı 0 / 18 · Kalite gereksinimi 0 / 11
 
 ---
 
@@ -16,11 +16,11 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 
 | Durum | Kod | Gereksinim | Endpoint / bileşen | Use case | Sorumlu | PR |
 |---|---|---|---|---|---|---|
-| ⬜ | FR-01 | E-posta ve şifreyle giriş | `POST /api/auth/login` | `Login` | Onur | |
-| ⬜ | FR-02 | Şifreler BCrypt ile saklanır | `PasswordEncoder` (BCrypt) | `Login` | Onur | |
-| ⬜ | FR-03 | Rol bazlı koruma, 401 / 403 | `SecurityConfig`, `@PreAuthorize` | Tüm endpoint'ler | Onur | |
-| ⬜ | FR-04 | JWT üretimi ve doğrulama | `SecurityConfig` (OAuth2 Resource Server, HS256) | `Login` | Onur | |
-| ⬜ | FR-11 | Kendi profilini görme | `GET /api/me` | `GetMyProfile` | Onur | |
+| ✅ | FR-01 | E-posta ve şifreyle giriş | `POST /api/auth/login` | `Login` | Onur | #104 |
+| ✅ | FR-02 | Şifreler BCrypt ile saklanır | `PasswordEncoder` (BCrypt) | `Login` | Onur | #104 |
+| ✅ | FR-03 | Rol bazlı koruma, 401 / 403 | `SecurityConfig`, `@PreAuthorize` | Tüm endpoint'ler | Onur | #104 |
+| ✅ | FR-04 | JWT üretimi ve doğrulama | `SecurityConfig` (OAuth2 Resource Server, HS256) | `Login` | Onur | #104 |
+| ✅ | FR-11 | Kendi profilini görme | `GET /api/me` | `GetMyProfile` | Onur | #104 |
 
 ### 1.2 Organizasyon
 
