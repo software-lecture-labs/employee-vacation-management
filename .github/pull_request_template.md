@@ -2,7 +2,8 @@
 <!-- 1-2 cümle: bu PR ne yapıyor, neden -->
 
 ## İlgili iş
-<!-- Örnek: Closes #23 · FR-21, FR-24 · BR-05, BR-07 -->
+<!-- Örnek: Closes #23 · FR-21, FR-24 · BR-05, BR-07
+     Not: dev'e birleşen PR issue'yu kapatmaz; birleşince issue'yu elle kapatın. -->
 Closes #
 
 ## Değişiklikler
@@ -23,6 +24,7 @@ POST /api/...
 -->
 
 ## Kontrol listesi
+- [ ] Base branch `dev` (zincirli PR ise birleştirmeden önce `dev`'e çevrildi)
 - [ ] Controller'da iş kuralı yok, Entity dışarı dönmüyor
 - [ ] Yeni ve değişen kod için test var
 - [ ] SonarQube for IDE'de yeni uyarı yok
