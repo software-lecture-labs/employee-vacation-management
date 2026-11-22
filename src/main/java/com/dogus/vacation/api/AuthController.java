@@ -3,6 +3,9 @@ package com.dogus.vacation.api;
 import com.dogus.vacation.application.mediator.Mediator;
 import com.dogus.vacation.application.usecase.auth.login.LoginRequest;
 import com.dogus.vacation.application.usecase.auth.login.LoginResponse;
+import com.dogus.vacation.application.usecase.auth.profile.GetMyProfileRequest;
+import com.dogus.vacation.application.usecase.auth.profile.GetMyProfileResponse;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -29,5 +32,11 @@ public class AuthController {
     @PostMapping("/api/auth/login")
     public LoginResponse login(@RequestBody LoginRequest request) {
         return mediator.send(request);
+    }
+
+    /** Giriş yapan çalışanın kendi profili (giriş yapmış herkes). Token yoksa 401. */
+    @GetMapping("/api/me")
+    public GetMyProfileResponse me() {
+        return mediator.send(new GetMyProfileRequest());
     }
 }
