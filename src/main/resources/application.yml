@@ -30,6 +30,14 @@ spring:
 server:
   port: 8080
 
+app:
+  security:
+    jwt:
+      # HS256 imzalama anahtarı, en az 32 bayt. Sadece ortam değişkeninden / .env'den gelir.
+      secret: ${JWT_SECRET}
+      # Token süresi (dakika); yenileme (refresh) token yok.
+      expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
