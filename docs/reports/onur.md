@@ -114,3 +114,42 @@ Her PR birleşmeden önce GitHub Actions'ta derleniyor ve bütün testler gerçe
 Zincirli PR'larda base'in `dev`'e çevrilmesi unutulunca değişiklik ana dala ulaşmadı; bunu fark edip düzelttik ve kuralı CONTRIBUTING'e ekledik.
 **Açık kalanlar:**
 - Ekip üyeleri birleşmiş gereksinimlerini sonraki PR'larında `REQUIREMENTS.md`'de ✅ yapacak.
+
+## 22 Kasım 2026 — feat(security): JWT ile giriş, roller ve CurrentUserProvider (#104)
+**İlgili gereksinimler:** FR-01, FR-02, FR-03, FR-04, FR-11 · BR-10 (giriş tarafı) · NFR-04, NFR-05
+**Use case(ler):** `LoginRequest`, `LoginResponse`, `LoginHandler`; `GetMyProfileRequest`, `GetMyProfileResponse`, `GetMyProfileHandler`
+**Ne yaptım:**
+- `SecurityConfig`: oturumsuz filtre zinciri; `POST /api/auth/login`, Swagger ve `/actuator/health` dışındaki her adres token istiyor. Token doğrulamasını Spring Security'nin OAuth2 Resource Server filtresi yapıyor (HS256).
+- `JwtTokenService`: `sub` = çalışan id'si, `role`, `email`, 60 dakika süre. Anahtar `JWT_SECRET` ortam değişkeninden; 32 bayttan kısaysa uygulama açılmıyor (`JwtProperties`).
+- `POST /api/auth/login`: doğru bilgiyle 200 + Bearer token; yanlış şifre, kayıtsız e-posta ve pasif çalışan aynı 401 `INVALID_CREDENTIALS`.
+- `GET /api/me`: giriş yapan çalışanın profili (`EmployeeView`: rol, departman, yönetici; şifre hash'i yok).
+- `CurrentUserProvider` arayüzü (`currentEmployeeId()`, `currentEmployee()`) ve JWT'den okuyan `JwtCurrentUserProvider`.
+- 401 (`AUTHENTICATION_REQUIRED`) ve 403 (`ACTION_NOT_ALLOWED`) cevapları diğer hatalarla aynı JSON biçiminde (`RestAuthenticationEntryPoint`, `RestAccessDeniedHandler`).
+- İzin türü ekleme/güncelleme ve şirket izin geçmişi `@PreAuthorize("hasRole('HR')")` ile İK'ya kısıtlandı (#25, #52).
+- Swagger'da "Authorize" ile Bearer token girişi.
+**Validator'a koyduğum kurallar:**
+- `LoginRequest`: e-posta zorunlu, geçerli biçim, en fazla 120 karakter; şifre zorunlu, en fazla 72 karakter (BCrypt sınırı). Alanlar arası kural olmadığı için ayrı Validator sınıfı yok.
+**Handler'daki kurallar ve transaction:**
+- `LoginHandler` (`@Transactional(readOnly = true)`): e-posta büyük/küçük harfe duyarsız aranıyor; kullanıcı yok, şifre yanlış veya pasifse 401. Kayıtsız e-postada da bir BCrypt karşılaştırması yapılıyor; cevap süresinden e-postanın kayıtlı olup olmadığı anlaşılmasın diye.
+- `GetMyProfileHandler` (`@Transactional(readOnly = true)`): çalışan `CurrentUserProvider`'dan; departman ve yönetici transaction içinde okunuyor.
+**Neden böyle yaptım (tasarım kararları):**
+- Elle JWT filtresi yazmak yerine Spring Security'nin kendi Resource Server desteği: imza, süre ve algoritma denetimini kütüphane yapıyor.
+- Handler'lar Spring Security'yi bilmiyor; kimlik `CurrentUserProvider`'dan, token `AccessTokenIssuer`'dan geliyor (DIP). Birim testlerinde ikisi de Mockito ile veriliyor.
+- Hatalı giriş için yeni bir hata türü (`ErrorCategory.UNAUTHENTICATED` → 401) eklendi; alan katmanı HTTP bilmeden 401 üretebiliyor.
+- Token'da sadece id, rol ve e-posta var; güncel bilgi (aktiflik, departman) her istekte veritabanından okunuyor.
+**Testler:**
+- `JwtPropertiesTest` — kısa/eksik anahtar ve sıfır süre reddediliyor, anahtar `toString`'de görünmüyor
+- `JwtTokenServiceTest` — claim'ler, 60 dakika süre, başka anahtarla imzalı ve süresi dolmuş token reddi
+- `JwtCurrentUserProviderTest` — token'dan id ve çalışan, kayıt yoksa 404, giriş yoksa hata
+- `LoginHandlerTest` — doğru giriş, e-posta boşlukları, yanlış şifre, kayıtsız e-posta, pasif çalışan, şifrenin loga düşmemesi
+- `GetMyProfileHandlerTest` — profil, departman ve yönetici
+- `AuthenticationAndAuthorizationIntegrationTest` — 13 uçtan uca test: giriş, 401, bozuk token, 403 ve İK'nın aynı adreste başarılı olması
+- `GlobalExceptionHandlerTest` — `INVALID_CREDENTIALS` → 401
+**Karşılaştığım sorun ve çözümü:**
+- `@PreAuthorize`'dan gelen yetki hatası Controller'da oluştuğu için `GlobalExceptionHandler`'a uğruyor. Bilge'nin tasarımında Security hataları bilerek yeniden fırlatılıyor; böylece hata Security filtresine dönüyor ve 403 de aynı JSON biçimiyle `RestAccessDeniedHandler`'dan çıkıyor.
+**Sunumda anlatacağım tek cümle:**
+Giriş yapan kullanıcı token'la tanınıyor, rolü token'dan okunuyor; Handler'lar ise kimliği sadece `CurrentUserProvider` arayüzünden alıyor, bu yüzden REST yerine gRPC gelse de değişmiyorlar.
+**Açık kalanlar:**
+- BR-10'un "pasif çalışan talep açamaz" kısmı Bilge'nin `SubmitLeaveHandler`'ında (`currentEmployee().isActive()`).
+- Diğer modüllerin uç noktalarının 403 testleri o uç noktalar birleştikçe bu teste eklenecek.
+- Şifre değiştirme (FR-05, bonus) 27 Kasım'da.
