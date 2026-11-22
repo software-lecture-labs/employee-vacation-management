@@ -67,3 +67,27 @@ Commit, branch ve PR kurallarımızı `CONTRIBUTING.md`'ye yazdık; her commit'i
 **Açık kalanlar:**
 - README'deki `docs/REQUIREMENTS.md` linki Zehra'nın README iskeleti PR'ında geliyor.
 - Branch koruması ve "Rebase and merge" ayarı repo yöneticisinin yetkisinde; rica edilecek.
+
+## 17 Kasım 2026 — ci(ci): GitHub Actions ile derleme ve testler (#<PR no>)
+**İlgili gereksinimler:** NFR-03 (testlerin her PR'da koşması), NFR-04 (iş akışı gizli değer kullanmıyor)
+**Use case(ler):** Yok (altyapı)
+**Ne yaptım:**
+- `.github/workflows/build.yml`: `dev` ve `main`'e açılan her PR'da ve bu branch'lere her birleşmede `./mvnw verify` koşuyor.
+- Java 21 (Temurin) kuruluyor, Maven bağımlılıkları önbelleğe alınıyor.
+- Test başarısız olursa `target/surefire-reports/` indirilebilir dosya olarak saklanıyor; birleşmelerde WAR dosyası 7 gün saklanıyor.
+**Validator'a koyduğum kurallar:**
+- Yok (kod yok)
+**Handler'daki kurallar ve transaction:**
+- Yok
+**Neden böyle yaptım (tasarım kararları):**
+- Testler Testcontainers ile geçici PostgreSQL açtığı için CI'da Supabase şifresine gerek yok; iş akışı hiçbir secret kullanmıyor ve yetkisi `contents: read` ile sınırlı.
+- Aynı branch'e art arda push edilirse eski çalışma iptal ediliyor (`concurrency`).
+- SonarQube yerelde çalıştığı için CI'da Sonar adımı yok (plan 10.6).
+**Testler:**
+- İş akışı `actionlint` ile denetlendi; ilk gerçek çalışma bu PR açıldığında GitHub'da görülecek.
+**Karşılaştığım sorun ve çözümü:**
+- Yok
+**Sunumda anlatacağım tek cümle:**
+Her PR birleşmeden önce GitHub Actions'ta derleniyor ve bütün testler gerçek bir PostgreSQL'e karşı koşuyor; kırmızı PR birleşmiyor.
+**Açık kalanlar:**
+- Branch korumasında "CI yeşil" şartının açılması repo yöneticisinin yetkisinde.
