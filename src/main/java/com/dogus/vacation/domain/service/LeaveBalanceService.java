@@ -44,6 +44,8 @@ import org.springframework.transaction.annotation.Transactional;
  * {@link #checkSufficient}, {@link #deduct} ve {@link #refund} hiçbir şey yapmaz;
  * çağıranın tür kontrolü yapmasına gerek yoktur. Bu türler için yıllık bakiye de açılmaz.
  *
+ * <p><b>Devir (BR-12):</b> Kullanılmayan yıllık izin {@link #carryOver} ile sonraki yıla geçer.
+ *
  * <p><b>Yıllık bakiye kuralı tek yerde:</b> Bir çalışana bir yıl için hangi türlerde kaç
  * günlük bakiye açılacağı {@link #openYearBalances} içindedir. Yeni yıl (T3) ve yeni çalışan
  * (T4) aynı metodu çağırır; kural iki ayrı yerde yazılıp zamanla birbirinden ayrılmaz.
@@ -51,9 +53,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(propagation = Propagation.MANDATORY)
 public class LeaveBalanceService {
-
-    /** Kıdem ve yaşa göre hesaplanan tür; değişmeyen koduyla bulunur (FR-33). */
-    static final String ANNUAL_LEAVE_CODE = "ANNUAL";
 
     private final LeaveBalanceRepository balanceRepository;
     private final BalanceTransactionRepository transactionRepository;
@@ -205,12 +204,47 @@ public class LeaveBalanceService {
         return opened;
     }
 
+    /**
+     * Bir yılın kalan gününü sonraki yılın aynı türdeki bakiyesine devreder (BR-12).
+     *
+     * <p>Eski bakiyede hak edilen gün kalan kadar azalır (DEDUCTION, "2027 yılına devredildi"),
+     * yeni bakiyede aynı kadar artar (ACCRUAL, "2026 yılından devreden"). Eski yılın kalanı sıfır
+     * olduğu için aynı gün iki yılda kullanılamaz; devir ikinci kez çağrılırsa devredecek gün
+     * kalmamıştır ve hiçbir şey yapılmaz.
+     *
+     * @param from  önceki yılın bakiyesi
+     * @param to    aynı çalışanın aynı türde sonraki yıl bakiyesi
+     * @param actor işlemi yapan İK; iki hareket kaydında da "kim" olarak görünür
+     * @return devredilen gün; kalan yoksa sıfır
+     * @throws IllegalArgumentException bakiyeler aynı çalışanın, aynı türün ve ardışık yılların değilse
+     */
+    public BigDecimal carryOver(LeaveBalance from, LeaveBalance to, Employee actor) {
+        Objects.requireNonNull(from, "from");
+        Objects.requireNonNull(to, "to");
+        Objects.requireNonNull(actor, "actor");
+        if (!from.getEmployee().getId().equals(to.getEmployee().getId())
+                || !from.getLeaveType().getId().equals(to.getLeaveType().getId())
+                || to.getYear() != from.getYear() + 1) {
+            throw new IllegalArgumentException(
+                    "Devir aynı çalışanın aynı türdeki ardışık iki yılı arasında yapılır.");
+        }
+        BigDecimal days = from.remainingDays();
+        if (days.signum() <= 0) {
+            return BigDecimal.ZERO;
+        }
+        from.transferOut(days);
+        to.transferIn(days);
+        record(from, null, BalanceTransactionType.DEDUCTION, days, to.getYear() + " yılına devredildi", actor);
+        record(to, null, BalanceTransactionType.ACCRUAL, days, from.getYear() + " yılından devreden", actor);
+        return days;
+    }
+
     /** Türün o yıl için hak edilen günü; bakiye açılmayacaksa {@code null}. */
     private BigDecimal yearlyEntitlement(Employee employee, LeaveType leaveType, int year) {
         if (!leaveType.isActive() || !leaveType.isDeductsFromBalance()) {
             return null;
         }
-        if (ANNUAL_LEAVE_CODE.equals(leaveType.getCode())) {
+        if (LeaveType.ANNUAL_CODE.equals(leaveType.getCode())) {
             return BigDecimal.valueOf(
                     entitlementPolicy.annualLeaveDays(employee.getHireDate(), employee.getBirthDate(), year));
         }

@@ -32,6 +32,7 @@ public enum ErrorCode {
     DUPLICATE_VALUE(ErrorCategory.CONFLICT, "Bu değer zaten kullanılıyor."),
     CONCURRENT_UPDATE(ErrorCategory.CONFLICT, "Kayıt aynı anda başka bir işlemle değişti; lütfen tekrar deneyin."),
     ACCRUAL_ALREADY_RUN(ErrorCategory.CONFLICT, "Bu yılın hak edişi zaten çalıştırıldı."),
+    ACCRUAL_NOT_RUN(ErrorCategory.CONFLICT, "Önce yeni yılın hak edişi çalıştırılmalı."),
 
     // 422
     INSUFFICIENT_BALANCE(ErrorCategory.BUSINESS_RULE, "Yetersiz izin bakiyesi."),
