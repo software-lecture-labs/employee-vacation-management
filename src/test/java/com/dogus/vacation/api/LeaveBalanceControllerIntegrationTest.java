@@ -1,5 +1,6 @@
 package com.dogus.vacation.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -31,7 +32,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 /**
- * Bakiye uç noktalarını uçtan uca doğrular (FR-32): gerçek giriş ve JWT, güvenlik
+ * Bakiye uç noktalarını uçtan uca doğrular (FR-32, FR-34): gerçek giriş ve JWT, güvenlik
  * filtreleri, mediator, Handler ve PostgreSQL birlikte çalışır.
  *
  * <p>Kurulum: A departmanında İK, yönetici ve yöneticiye bağlı bir çalışan; B departmanında
@@ -176,6 +177,63 @@ class LeaveBalanceControllerIntegrationTest extends AbstractIntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, bearer(hr)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("EMPLOYEE_NOT_FOUND"));
+    }
+
+    // ---- POST /api/leave-balances/accruals ----
+
+    /** Bağlı çalışanın bu yılın iki bakiyesi zaten açık (T4 gibi): o atlanır, diğer üçüne açılır. */
+    @Test
+    void hrRunsTheAnnualAccrualAndEmployeesWithBalancesAreSkipped() throws Exception {
+        mockMvc.perform(post("/api/leave-balances/accruals").param("year", String.valueOf(thisYear))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(hr)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.year").value(thisYear))
+                .andExpect(jsonPath("$.accruedEmployees").value(3))
+                .andExpect(jsonPath("$.skippedEmployees").value(1))
+                .andExpect(jsonPath("$.openedBalances").value(6))
+                .andExpect(jsonPath("$.runAt").isNotEmpty());
+        assertThat(countRows("annual_accrual_runs")).isEqualTo(1);
+        assertThat(countRows("leave_balances")).isEqualTo(9);
+    }
+
+    @Test
+    void managerCannotRunTheAccrual() throws Exception {
+        mockMvc.perform(post("/api/leave-balances/accruals").param("year", String.valueOf(thisYear))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(manager)))
+                .andExpect(status().isForbidden());
+        assertThat(countRows("annual_accrual_runs")).isZero();
+        assertThat(countRows("leave_balances")).isEqualTo(3);
+    }
+
+    @Test
+    void runningTheSameYearTwiceIs409() throws Exception {
+        String token = bearer(hr);
+        mockMvc.perform(post("/api/leave-balances/accruals").param("year", String.valueOf(thisYear + 1))
+                        .header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/leave-balances/accruals").param("year", String.valueOf(thisYear + 1))
+                        .header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ACCRUAL_ALREADY_RUN"));
+        assertThat(countRows("annual_accrual_runs")).isEqualTo(1);
+    }
+
+    @Test
+    void accrualRejectsAYearOtherThanThisOrNext() throws Exception {
+        mockMvc.perform(post("/api/leave-balances/accruals").param("year", String.valueOf(thisYear + 2))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(hr)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("year"));
+    }
+
+    @Test
+    void accrualRequiresAYear() throws Exception {
+        mockMvc.perform(post("/api/leave-balances/accruals").header(HttpHeaders.AUTHORIZATION, bearer(hr)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("year"))
+                .andExpect(jsonPath("$.fieldErrors[0].message").value("Yıl zorunludur."));
     }
 
     // ---- yardımcılar ----
