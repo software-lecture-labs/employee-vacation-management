@@ -51,7 +51,7 @@ class ListDepartmentsHandlerTest {
         when(departmentRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(
                 List.of(department(3, "Finans"), department(1, "Pazarlama")), firstPage, 3));
 
-        PageResponse<DepartmentView> response = handler.handle(new ListDepartmentsRequest(0, 2));
+        PageResponse<DepartmentView> response = handler.handle(new ListDepartmentsRequest(0, 2)).departments();
 
         assertThat(response.content()).containsExactly(
                 new DepartmentView(3L, "Finans"), new DepartmentView(1L, "Pazarlama"));
