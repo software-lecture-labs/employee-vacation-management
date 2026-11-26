@@ -54,6 +54,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(propagation = Propagation.MANDATORY)
 public class LeaveBalanceService {
 
+    /** Boş geçilemeyen parametrelerin adları; {@link Objects#requireNonNull} hata mesajında görünür. */
+    private static final String EMPLOYEE = "employee";
+    private static final String ACTOR = "actor";
+
     private final LeaveBalanceRepository balanceRepository;
     private final BalanceTransactionRepository transactionRepository;
     private final LeaveTypeRepository leaveTypeRepository;
@@ -78,7 +82,7 @@ public class LeaveBalanceService {
      * @throws NotFoundException            o yıl için bakiye yoksa (404)
      */
     public void checkSufficient(Employee employee, LeaveType leaveType, int year, BigDecimal days) {
-        Objects.requireNonNull(employee, "employee");
+        Objects.requireNonNull(employee, EMPLOYEE);
         Objects.requireNonNull(leaveType, "leaveType");
         if (!leaveType.isDeductsFromBalance()) {
             return;
@@ -97,13 +101,13 @@ public class LeaveBalanceService {
      */
     public void deduct(LeaveRequest request, Employee actor) {
         Objects.requireNonNull(request, "request");
-        Objects.requireNonNull(actor, "actor");
+        Objects.requireNonNull(actor, ACTOR);
         if (!request.getLeaveType().isDeductsFromBalance()) {
             return;
         }
         LeaveBalance balance = balanceOf(request);
         balance.use(request.getWorkingDays());
-        record(balance, request, BalanceTransactionType.DEDUCTION, request.getWorkingDays(),
+        recordTransaction(balance, request, BalanceTransactionType.DEDUCTION, request.getWorkingDays(),
                 "İzin talebi #" + request.getId() + " onaylandı", actor);
     }
 
@@ -116,13 +120,13 @@ public class LeaveBalanceService {
      */
     public void refund(LeaveRequest request, Employee actor) {
         Objects.requireNonNull(request, "request");
-        Objects.requireNonNull(actor, "actor");
+        Objects.requireNonNull(actor, ACTOR);
         if (!request.getLeaveType().isDeductsFromBalance()) {
             return;
         }
         LeaveBalance balance = balanceOf(request);
         balance.restore(request.getWorkingDays());
-        record(balance, request, BalanceTransactionType.REFUND, request.getWorkingDays(),
+        recordTransaction(balance, request, BalanceTransactionType.REFUND, request.getWorkingDays(),
                 "İzin talebi #" + request.getId() + " iptal edildi", actor);
     }
 
@@ -140,10 +144,10 @@ public class LeaveBalanceService {
      */
     public LeaveBalance openBalance(Employee employee, LeaveType leaveType, int year,
                                     BigDecimal entitledDays, Employee actor) {
-        Objects.requireNonNull(employee, "employee");
+        Objects.requireNonNull(employee, EMPLOYEE);
         Objects.requireNonNull(leaveType, "leaveType");
         Objects.requireNonNull(entitledDays, "entitledDays");
-        Objects.requireNonNull(actor, "actor");
+        Objects.requireNonNull(actor, ACTOR);
         if (entitledDays.signum() < 0) {
             throw new IllegalArgumentException("Hak edilen gün negatif olamaz.");
         }
@@ -186,9 +190,9 @@ public class LeaveBalanceService {
      */
     public List<LeaveBalance> openYearBalances(Employee employee, int year, List<LeaveType> leaveTypes,
                                                Employee actor) {
-        Objects.requireNonNull(employee, "employee");
+        Objects.requireNonNull(employee, EMPLOYEE);
         Objects.requireNonNull(leaveTypes, "leaveTypes");
-        Objects.requireNonNull(actor, "actor");
+        Objects.requireNonNull(actor, ACTOR);
         List<LeaveBalance> opened = new ArrayList<>();
         if (employee.getHireDate().getYear() > year) {
             return opened;
@@ -221,7 +225,7 @@ public class LeaveBalanceService {
     public BigDecimal carryOver(LeaveBalance from, LeaveBalance to, Employee actor) {
         Objects.requireNonNull(from, "from");
         Objects.requireNonNull(to, "to");
-        Objects.requireNonNull(actor, "actor");
+        Objects.requireNonNull(actor, ACTOR);
         if (!from.getEmployee().getId().equals(to.getEmployee().getId())
                 || !from.getLeaveType().getId().equals(to.getLeaveType().getId())
                 || to.getYear() != from.getYear() + 1) {
@@ -234,8 +238,10 @@ public class LeaveBalanceService {
         }
         from.transferOut(days);
         to.transferIn(days);
-        record(from, null, BalanceTransactionType.DEDUCTION, days, to.getYear() + " yılına devredildi", actor);
-        record(to, null, BalanceTransactionType.ACCRUAL, days, from.getYear() + " yılından devreden", actor);
+        recordTransaction(from, null, BalanceTransactionType.DEDUCTION, days,
+                to.getYear() + " yılına devredildi", actor);
+        recordTransaction(to, null, BalanceTransactionType.ACCRUAL, days,
+                from.getYear() + " yılından devreden", actor);
         return days;
     }
 
@@ -255,7 +261,7 @@ public class LeaveBalanceService {
                                         BigDecimal entitledDays, Employee actor) {
         LeaveBalance balance = balanceRepository.save(new LeaveBalance(employee, leaveType, year, entitledDays));
         if (entitledDays.signum() > 0) {
-            record(balance, null, BalanceTransactionType.ACCRUAL, entitledDays,
+            recordTransaction(balance, null, BalanceTransactionType.ACCRUAL, entitledDays,
                     year + " yılı hak edişi", actor);
         }
         return balance;
@@ -270,7 +276,7 @@ public class LeaveBalanceService {
                 .orElseThrow(() -> new NotFoundException(ErrorCode.LEAVE_BALANCE_NOT_FOUND));
     }
 
-    private void record(LeaveBalance balance, LeaveRequest request, BalanceTransactionType type,
+    private void recordTransaction(LeaveBalance balance, LeaveRequest request, BalanceTransactionType type,
                         BigDecimal days, String note, Employee actor) {
         transactionRepository.save(new BalanceTransaction(balance, request, type, days, note, actor));
     }
