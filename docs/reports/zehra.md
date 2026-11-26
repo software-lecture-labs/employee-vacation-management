@@ -361,3 +361,36 @@ Talebin her durum değişikliği aynı transaction'da ve hemen veritabanına yaz
 - Branch #99 birleşmeden önce açıldığı için rapor dosyasında #99'un bölümü yoktu → güncel `dev` branch'e birleştirildi (`git merge origin/dev`), rapor bölümü #99'un bölümünün arkasına eklendi; böylece birleştirmede çakışma çıkmadı.
 **Sunumda anlatacağım tek cümle:**
 İK'nın şirket izin geçmişi beş isteğe bağlı filtreyle tek bir dinamik sorguda aranıyor; ilişkiler join ile geldiği için sayfa ne kadar büyük olursa olsun en fazla iki SQL çalışıyor.
+
+## 26 Kasım 2026 — refactor: use case yapısını tutarlı hâle getir (#106)
+**İlgili gereksinimler:** NFR-01 · Issue #105
+**Use case(ler):** Yapı düzeltmesi; etkilenenler `SearchLeaveHistory`, `ListDepartments`, `ListLeaveTypes`, `UpdateLeaveType`, `Login`, `GetMyProfile`, `SubmitLeave` (paket adı)
+**Ne yaptım:**
+- Repodaki tüm use case paketlerini plan 4.2'deki "her use case dört dosya (Request, Response, Handler, Validator)" kuralına göre tek tek inceledim; yanlış yerde duran bir Handler yoktu, ama dosyası eksik use case'ler vardı.
+- Eksik Response'ları ekledim: `SearchLeaveHistoryResponse(history)` ve `ListDepartmentsResponse(departments)`. İkisi de Handler'dan doğrudan sayfa (`PageResponse`) dönüyordu; artık diğer use case'ler gibi sayfayı tek alanlı bir cevapla sarıyorlar.
+- Eksik Validator'ları ekledim: `LoginValidator`, `GetMyProfileValidator`, `ListDepartmentsValidator`, `ListLeaveTypesValidator`, `UpdateLeaveTypeValidator`. Alanlar arası kuralı olmayanlar boş liste dönüyor; javadoc'larında kuralların nerede olduğu (istek anotasyonu ya da Handler) yazıyor.
+- `usecase/leave/submit` paketini `usecase/leaverequest/submit` olarak yeniden adlandırdım (`git mv` ile, dosya geçmişi korunarak); IntelliJ şablon rehberindeki örnek yolu da güncelledim.
+- `LeaveBalanceServiceTest`'in adını `LeaveBalanceServiceIntegrationTest` yaptım.
+- Kuralı her derlemede denetleyen `architecture/UseCaseStructureTest` mimari testini yazdım.
+- Bu iş için issue #105'i açtım; değişiklikleri 7 commit'e böldüm (her biri tek bir use case ya da tek bir düzeltme, her commit kendi testleriyle yeşil).
+**Validator'a koyduğum kurallar:**
+- Yeni kural yok; eklenen Validator'lar mevcut kuralların yerini değiştirmedi.
+**Handler'daki kurallar ve transaction:**
+- Değişmedi. Handler'lar yalnızca cevabı yeni Response record'una sarıyor; transaction sınırları ve iş kuralları aynı.
+**Neden böyle yaptım (tasarım kararları):**
+- Tutarlılık: plan ve Bilge'nin IntelliJ şablonu her use case için dört dosya öngörüyor; kodu okuyan biri her use case'te aynı dört dosyayı bulunca neyin nerede olduğunu aramıyor.
+- Liste cevabını sarmak (`{history: {...}}`): diğer cevaplar da tek alanlı (`{leaveTypes: [...]}`, `{leaveType: {...}}`); cevaba ileride ek bilgi (örneğin filtre özeti) eklenirse JSON biçimi bozulmuyor. Bu uç noktaları kullanan bir istemci henüz olmadığı için değişikliğin en ucuz olduğu an şimdiydi.
+- Boş Validator yazmak: dosya sayısı artıyor ama yer sabit kalıyor; yeni bir alanlar arası kural eklenecekse nereye yazılacağı belli. Alternatif ("Validator yalnızca kural varsa") daha az dosya demekti ama planla çelişiyordu.
+- `leaverequest` adı: `leave` ile `leavetype` yan yana karışıyordu; commit kapsamı da zaten `leave-request`.
+- Mimari testi: kural yalnızca bu PR'da düzelmekle kalmasın, korunsun diye. Test classpath'ten tüm `XxxRequest`'leri bulur ve her biri için aynı pakette `XxxResponse`, `XxxHandler`, `XxxValidator`'ın var olduğunu ve generic tiplerin (`Request<XxxResponse>`, `RequestHandler<XxxRequest, XxxResponse>`, `RequestValidator<XxxRequest>`) doğru bağlandığını, paketin `usecase.<alan>.<işlem>` biçiminde olduğunu denetler. Kurala uymayan yeni bir use case CI'da kırmızı olur. Ek kütüphane (ArchUnit gibi) eklemedim; Spring'in classpath tarayıcısı yetti.
+- Handler'ı henüz yazılmamış `SubmitLeave` testte açıkça yazılmış bir istisna listesinde; Handler'ı yazmak Bilge'nin iş kurallarını yazmak demek olduğu için ona dokunmadım.
+- Domain servislerinin persistence repository'lerini kullanması değiştirilmedi: plan bağımlılık yönünü `api → application → domain → infrastructure.persistence` olarak belirlemiş; bu bilinçli bir tercih ve `TECHNICAL_DECISIONS.md`'de gerekçesiyle anlatılacak.
+**Testler:**
+- `UseCaseStructureTest`: 1 sabit test (taramanın boş olmadığı) ve her use case için 1 dinamik test.
+- Departman ve geçmiş araması testleri (Handler, entegrasyon, Controller) yeni cevap biçimine göre güncellendi; diğer testler değişmeden yeşil.
+- `./mvnw verify`: BUILD SUCCESS.
+**Karşılaştığım sorun ve çözümü:**
+- `git mv` ile taşınan dosyalar otomatik olarak commit'e hazırlandığı için ilk commit'e karışacaktı → önce `git restore --staged .` ile hepsi hazırlıktan çıkarıldı, sonra her commit'e yalnızca kendi dosyaları eklendi; Git yeniden adlandırmaları yine tanıdı.
+- Değişiklik başka üyelerin dosyalarına da dokunuyordu → cevap biçimi değişikliği ve paket adı PR açıklamasında ayrıca yazıldı; Bilge'ye yerel çalışmasını nasıl güncelleyeceği not edildi.
+**Sunumda anlatacağım tek cümle:**
+Her use case aynı dört dosyadan oluşuyor ve bu kural bir mimari testiyle her derlemede denetleniyor; yapıya uymayan kod CI'dan geçemiyor.
