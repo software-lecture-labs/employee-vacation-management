@@ -575,3 +575,60 @@ Swagger açıklamalarını controller'dan ayrı arayüzlere yazdım ve örnekler
 - Gereksinim listesinde BR-12 `RunAnnualAccrualHandler` içinde düşünülmüştü; ama T3'ün Aralık'ta gelecek yıl için çalıştırılabilmesi, devri T3'e koymayı yanlış yapıyordu (aynı günler iki yılda kullanılabilirdi) → devir, yalnızca biten yıldan yapılan ayrı bir işlem oldu.
 **Sunumda anlatacağım tek cümle:**
 Kullanılmayan yıllık izni, yıl kapandıktan sonra ayrı bir işlemle devrediyorum; eski yılın kalanı sıfırlandığı için aynı gün iki yılda kullanılamıyor ve işlem tekrar çalıştırılsa da bir şey değişmiyor.
+
+## 26 Kasım 2026 — test(balance): modül kapsamı ve Sonar uyarıları (#112)
+**İlgili gereksinimler:** NFR-02, NFR-03 · Issue #63
+**Use case(ler):** Ana davranış değişmedi; testler ve Sonar düzeltmeleri
+**Ne yaptım:**
+- JaCoCo raporundan modülümün kapsamını çıkardım. Hedef (%80) zaten aşılmıştı; kalan boşluklardan yalnızca gerçek bir davranışı ya da riski sınayanları test ettim. Başka modüllerin sınıflarına dokunmadım.
+- SonarQube for IDE ve yerel SonarQube sunucusuyla (README'deki kurulum) bütün projeyi taradım; modülümdeki 5 uyarıyı giderdim.
+- Değişiklikler 5 commit'te (eşitlik ve eşleme testleri, servis ve Handler testleri, bakiye servisinin ve devrin Sonar düzeltmeleri, iş günü hesabının Sonar düzeltmesi).
+
+**Kapsam (JaCoCo):**
+
+| | Satır | Dal |
+|---|---|---|
+| Modül, önce | %94,6 (664/702) | %91,3 (157/172) |
+| Modül, sonra | %99,9 (701/702) | %98,8 (170/172) |
+| Projenin tamamı, sonra | %98,2 | %93,4 |
+
+Kalan 1 satır ve 2 dal başka modülün sınıflarında (`LeaveTypeRef`, `LeaveRequest`); modülümün sınıfları %100.
+
+**Eklenen testler (20):**
+- `BaseEntityTest` (7): aynı kayıt eşit; farklı kayıt, kaydedilmemiş iki nesne ve farklı entity türü eşit değil; hash kodu kayıttan sonra değişmiyor.
+- `PersistenceMappingTest` (+4): `Employee`, `Department`, `BalanceTransaction`, `AnnualAccrualRun`, `PublicHoliday` kaydedilip geri okunuyor; her alan doğru kolonda.
+- `RunAnnualAccrualHandlerTest` (1): aynı anda iki hak ediş çalıştırmasında veritabanı hatası 500 değil 409 dönüyor.
+- `GetEmployeeBalancesHandlerTest` (3): çalışan rolü ve başka ekibin yöneticisi reddediliyor; Handler, Controller'daki kontrol olmadan da korumalı. İstenen yıl kullanılıyor.
+- `LeaveBalanceServiceIntegrationTest` (+5): bakiyeden düşmeyen türün iadesi, negatif gün, pasif veya düşmeyen türün açılmaması, farklı türde devir, kalanı olmayan devir.
+
+**Giderilen Sonar uyarıları (5):**
+
+| Dosya | Kural | Düzeltme |
+|---|---|---|
+| `LeaveBalanceService` | java:S1192 (iki uyarı): "employee" ve "actor" metinleri tekrar ediyor | `EMPLOYEE` ve `ACTOR` sabitleri |
+| `LeaveBalanceService` | java:S6213: `record` metot adı (Java 16'dan beri dilde özel kelime) | `recordTransaction` |
+| `RunCarryOverHandler` | java:S135: döngüde birden fazla `continue` | Kalanı olmayan bakiyeler önce ayıklanıyor, döngüde `if / else` |
+| `WeekdayWorkingDayCalculator` | java:S8696 (iki uyarı, sunucu taraması): değer tabanlı türler `==` ile karşılaştırılmamalı | `switch` ile cumartesi/pazar kontrolü |
+
+**Sonar sonucu (yerel sunucu, son tarama):**
+
+| Ölçüt | Sonuç |
+|---|---|
+| Quality Gate | OK |
+| Güvenilirlik (Reliability) | A (önce D) |
+| Sürdürülebilirlik (Maintainability) | A, 0 kod kokusu |
+| Tekrar | %0 |
+| Güvenlik (Security) | D: tek uyarı `SecurityConfig` satır 59 (java:S4502, CSRF), Onur'un modülünde |
+
+**Neden böyle yaptım (tasarım kararları):**
+- Kapsamı yükseltmek için getter testi yazmadım: eksik alanları, entity'yi kaydedip geri okuyan testlerle kapattım. Böylece aynı testler kolon eşlemelerini de doğruluyor.
+- HTTP üzerinden tetiklenemeyen dallar (aynı anda iki çalıştırma, Controller'daki rol kontrolünün atlanması) Mockito'lu birim testleriyle sınandı.
+- `WeekdayWorkingDayCalculator`'daki `!=` karşılaştırması aslında doğruydu (`DayOfWeek` bir enum). Kural yanlış alarm verse de `switch` daha okunur olduğu için kodu değiştirdim; davranış aynı, mevcut iş günü testleri değişmeden geçti.
+- CSRF uyarısına dokunmadım: dosya Onur'un. API oturumsuz ve Bearer token'lı olduğu için CSRF koruması gerekmiyor, gerekçe kodda yazıyor; Sonar'ın bunu görmesi için yapılacak işaretleme kararını Onur'a bıraktım.
+**Testler:**
+- `./mvnw verify`: 358 test, 0 hata (20 yeni).
+**Karşılaştığım sorun ve çözümü:**
+- SonarQube for IDE yalnızca açık dosyaları tarıyor → README'deki yerel SonarQube sunucusunu kurup bütün projeyi taradım; IDE'nin görmediği iki uyarı (`WeekdayWorkingDayCalculator`) sunucu taramasında çıktı.
+- PowerShell'de commit mesajındaki çift tırnaklar mesajı bölüp commit'i engelliyordu → mesajlarda çift tırnak kullanılmıyor.
+**Sunumda anlatacağım tek cümle:**
+Modülümün kapsamını %94,6'dan %99,9'a çıkardım ve bütün projeyi yerel SonarQube'da taradım; modülümde uyarı kalmadı, Güvenilirlik notu D'den A'ya çıktı.
