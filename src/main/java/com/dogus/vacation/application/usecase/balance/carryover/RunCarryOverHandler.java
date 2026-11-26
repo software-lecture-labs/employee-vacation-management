@@ -3,6 +3,7 @@ package com.dogus.vacation.application.usecase.balance.carryover;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -84,17 +85,17 @@ public class RunCarryOverHandler implements RequestHandler<RunCarryOverRequest, 
         int carriedEmployees = 0;
         int skippedEmployees = 0;
         BigDecimal carriedDays = BigDecimal.ZERO;
-        for (LeaveBalance oldYear : balanceRepository.findForActiveEmployees(annual, fromYear)) {
-            if (oldYear.remainingDays().signum() <= 0) {
-                continue;
-            }
+        List<LeaveBalance> withRemainingDays = balanceRepository.findForActiveEmployees(annual, fromYear).stream()
+                .filter(balance -> balance.remainingDays().signum() > 0)
+                .toList();
+        for (LeaveBalance oldYear : withRemainingDays) {
             LeaveBalance newYear = newYearBalances.get(oldYear.getEmployee().getId());
             if (newYear == null) {
                 skippedEmployees++;
-                continue;
+            } else {
+                carriedDays = carriedDays.add(balanceService.carryOver(oldYear, newYear, hr));
+                carriedEmployees++;
             }
-            carriedDays = carriedDays.add(balanceService.carryOver(oldYear, newYear, hr));
-            carriedEmployees++;
         }
         return new RunCarryOverResponse(fromYear, toYear, carriedEmployees, carriedDays, skippedEmployees,
                 OffsetDateTime.now(clock));
