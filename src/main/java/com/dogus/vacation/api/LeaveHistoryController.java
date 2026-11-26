@@ -2,10 +2,9 @@ package com.dogus.vacation.api;
 
 import java.time.LocalDate;
 
-import com.dogus.vacation.application.common.PageResponse;
-import com.dogus.vacation.application.common.view.HistoryEntryView;
 import com.dogus.vacation.application.mediator.Mediator;
 import com.dogus.vacation.application.usecase.history.search.SearchLeaveHistoryRequest;
+import com.dogus.vacation.application.usecase.history.search.SearchLeaveHistoryResponse;
 import com.dogus.vacation.domain.model.enums.LeaveRequestStatus;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,7 +32,7 @@ public class LeaveHistoryController {
      */
     @GetMapping("/api/leave-requests/history")
     @PreAuthorize("hasRole('HR')")
-    public PageResponse<HistoryEntryView> search(
+    public SearchLeaveHistoryResponse search(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) Long departmentId,

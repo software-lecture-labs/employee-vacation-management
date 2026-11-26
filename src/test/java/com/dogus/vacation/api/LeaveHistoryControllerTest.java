@@ -23,6 +23,7 @@ import com.dogus.vacation.application.common.view.HistoryEntryView;
 import com.dogus.vacation.application.common.view.LeaveTypeRef;
 import com.dogus.vacation.application.mediator.Mediator;
 import com.dogus.vacation.application.usecase.history.search.SearchLeaveHistoryRequest;
+import com.dogus.vacation.application.usecase.history.search.SearchLeaveHistoryResponse;
 import com.dogus.vacation.domain.model.enums.LeaveRequestStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -58,20 +59,20 @@ class LeaveHistoryControllerTest {
     @Test
     void passesEveryFilterToTheUseCase() throws Exception {
         when(mediator.send(any(SearchLeaveHistoryRequest.class)))
-                .thenReturn(new PageResponse<>(List.of(APPROVED), 1, 5, 6, 2));
+                .thenReturn(new SearchLeaveHistoryResponse(new PageResponse<>(List.of(APPROVED), 1, 5, 6, 2)));
 
         mockMvc.perform(get("/api/leave-requests/history")
                         .param("from", "2026-11-01").param("to", "2026-11-30")
                         .param("departmentId", "2").param("status", "APPROVED").param("employeeId", "3")
                         .param("page", "1").param("size", "5"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].leaveRequestId").value(42))
-                .andExpect(jsonPath("$.content[0].employee.fullName").value("Ayşe Yılmaz"))
-                .andExpect(jsonPath("$.content[0].toStatus").value("APPROVED"))
-                .andExpect(jsonPath("$.content[0].actor.fullName").value("Mehmet Kaya"))
-                .andExpect(jsonPath("$.page").value(1))
-                .andExpect(jsonPath("$.totalElements").value(6))
-                .andExpect(jsonPath("$.totalPages").value(2));
+                .andExpect(jsonPath("$.history.content[0].leaveRequestId").value(42))
+                .andExpect(jsonPath("$.history.content[0].employee.fullName").value("Ayşe Yılmaz"))
+                .andExpect(jsonPath("$.history.content[0].toStatus").value("APPROVED"))
+                .andExpect(jsonPath("$.history.content[0].actor.fullName").value("Mehmet Kaya"))
+                .andExpect(jsonPath("$.history.page").value(1))
+                .andExpect(jsonPath("$.history.totalElements").value(6))
+                .andExpect(jsonPath("$.history.totalPages").value(2));
         verify(mediator).send(new SearchLeaveHistoryRequest(LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 30),
                 2L, LeaveRequestStatus.APPROVED, 3L, 1, 5));
     }
@@ -79,11 +80,11 @@ class LeaveHistoryControllerTest {
     @Test
     void usesDefaultsWhenNoParameterIsGiven() throws Exception {
         when(mediator.send(any(SearchLeaveHistoryRequest.class)))
-                .thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0));
+                .thenReturn(new SearchLeaveHistoryResponse(new PageResponse<>(List.of(), 0, 20, 0, 0)));
 
         mockMvc.perform(get("/api/leave-requests/history"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content").isEmpty());
+                .andExpect(jsonPath("$.history.content").isEmpty());
         verify(mediator).send(new SearchLeaveHistoryRequest(null, null, null, null, null, 0, 20));
     }
 

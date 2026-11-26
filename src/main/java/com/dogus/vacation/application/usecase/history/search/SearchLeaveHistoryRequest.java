@@ -2,8 +2,6 @@ package com.dogus.vacation.application.usecase.history.search;
 
 import java.time.LocalDate;
 
-import com.dogus.vacation.application.common.PageResponse;
-import com.dogus.vacation.application.common.view.HistoryEntryView;
 import com.dogus.vacation.application.mediator.Request;
 import com.dogus.vacation.domain.model.enums.LeaveRequestStatus;
 import jakarta.validation.constraints.Max;
@@ -39,7 +37,7 @@ public record SearchLeaveHistoryRequest(
         @Min(value = 1, message = "Sayfa büyüklüğü en az 1 olmalı.")
         @Max(value = 100, message = "Sayfa büyüklüğü en fazla 100 olabilir.")
         Integer size)
-        implements Request<PageResponse<HistoryEntryView>> {
+        implements Request<SearchLeaveHistoryResponse> {
 
     /** Varsayılan sayfa büyüklüğü (NFR-07). */
     public static final int DEFAULT_SIZE = 20;
