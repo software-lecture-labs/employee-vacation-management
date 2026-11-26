@@ -138,7 +138,7 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 |---|---|---|---|---|---|---|---|
 | ⬜ | T1 | İzin onayı: durum, geçmiş, bakiye düşümü | `ApproveLeave` | Bakiye yetmezse talep PENDING kalır, geçmiş satırı ve bakiye hareketi oluşmaz | | Bilge | |
 | ⬜ | T2 | Onaylı iznin iptali: durum, geçmiş, bakiye iadesi | `CancelLeave`, `ApproveLeaveCancellation` | Herhangi bir adım hata verirse izin APPROVED kalır, gün iade edilmez | | Sude | |
-| ⬜ | T3 | Yıllık hak ediş: tüm aktif çalışanlar | `RunAnnualAccrual` | Bir çalışanda hata olursa hiçbir çalışana hak yazılmaz | | Zehra | |
+| ✅ | T3 | Yıllık hak ediş: tüm aktif çalışanlar | `RunAnnualAccrual` | Bir çalışanda hata olursa hiçbir çalışana hak yazılmaz | `RunAnnualAccrualIntegrationTest.aFailureHalfwayRollsBackEverythingAndTheYearCanBeRunAgain` | Zehra | #108 |
 | ⬜ | T4 | Çalışan ekleme ve ilk bakiyeler | `CreateEmployee` | Bakiye adımı hata verirse çalışan da oluşmaz | | Sude | |
 | ⬜ | T5 | Süresi dolan iptal taleplerini sonuçsuz yapma | `ExpireCancellationRequests` | Her talep kendi transaction'ında; biri hata verirse diğerleri etkilenmez | | Onur | |
 

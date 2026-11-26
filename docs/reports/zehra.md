@@ -430,3 +430,46 @@ Her use case aynı dört dosyadan oluşuyor ve bu kural bir mimari testiyle her 
 - `REQUIREMENTS.md`'deki ✅ tanımı "Swagger'da çalışıyor" şartını da içeriyor; demo verisi (DataSeeder) olmadan Swagger'da giriş yapılamıyor → uç noktası olmayan satırlar şimdi işaretlendi; uç noktası olanlar, ekip işleri bitince hazırlanacak test senaryoları dokümanıyla Swagger'da denendikten sonra işaretlenecek.
 **Sunumda anlatacağım tek cümle:**
 Bakiye görüntülemede rolü Spring Security, "bu yönetici bu çalışanı görebilir mi?" sorusunu ise Handler veritabanındaki ilişkiye bakarak cevaplıyor; çalışan kendi bakiyesini token'dan, başkasının id'sini yazamadan görüyor.
+
+## 26 Kasım 2026 — feat(balance): yıllık hak ediş (T3) ve rollback testi (#108)
+**İlgili gereksinimler:** FR-33, FR-34 · BR-10, BR-11 · T3 · Issue #47
+**Use case(ler):** `RunAnnualAccrual`
+**Ne yaptım:**
+- `POST /api/leave-balances/accruals?year=` (201 / 400 / 403 / 409): İK bir yıl için bütün aktif çalışanların yıllık bakiyelerini açar. Cevapta yıl, hak yazılan ve atlanan çalışan sayısı, açılan bakiye sayısı ve çalıştırma zamanı var.
+- `LeaveBalanceService.openYearBalances`: bir çalışana bir yılın bakiyelerini açan ortak kural. Yıllık izin kıdem ve yaşa göre (`EntitlementPolicy`, #96), bakiyeden düşen diğer türler yıllık sınırı kadar (mazeret 5 gün) açılıyor; hastalık ve ücretsiz izne bakiye açılmıyor (BR-03). O yıl için bakiyesi zaten olan tür ve işe henüz başlamamış çalışan hata vermeden atlanıyor.
+- `usecase/balance/accrual`: dört dosya (Request, Response, Handler, Validator).
+- Repository'ler: aktif çalışanlar (`findAllByActiveTrueOrderByIdAsc`), aktif ve bakiyeden düşen türler, `AnnualAccrualRunRepository.existsByYear`.
+- `docs/REQUIREMENTS.md`'de T3 satırını rollback testinin adıyla ✅ yaptım. FR-34 ve BR-11 uç noktayla görülebildiği için Swagger denemesinden sonra işaretlenecek.
+- Değişiklikleri 4 commit'e böldüm (ortak bakiye açma kuralı, use case, Controller, uç nokta testleri).
+**Validator'a koyduğum kurallar:**
+- İstek anotasyonu (400): yıl zorunlu.
+- `RunAnnualAccrualValidator` (400): yalnızca bu yıl veya gelecek yıl kabul ediliyor; "bu yıl" `Clock`'tan alınıyor. İK yeni yılın bakiyelerini Aralık'ta hazırlayabiliyor; 2062 gibi bir yazım hatası ise reddediliyor, çünkü BR-11 yüzünden o yıl bir daha çalıştırılamazdı.
+**Handler'daki kurallar ve transaction:**
+- `RunAnnualAccrualHandler` (`@Transactional`) T3'ün transaction sınırı. `LeaveBalanceService` kendi transaction'ını açmıyor (`MANDATORY`), buna katılıyor; bir çalışanda hata çıkarsa önceki çalışanların bakiyeleri, ACCRUAL hareketleri ve çalıştırma kaydı birlikte geri alınıyor.
+- BR-11: yıl `annual_accrual_runs` tablosunda varsa `ACCRUAL_ALREADY_RUN` (409).
+- BR-10: işlemi yapan İK pasifse `INACTIVE_EMPLOYEE`.
+- Aynı anda iki çalıştırma: ikisi de ilk kontrolü geçse bile veritabanındaki `uq_annual_accrual_runs_year` ikinci kaydı reddediyor; kayıt `saveAndFlush` ile yazıldığı için hata Handler'da yakalanıp aynı 409'a çevriliyor ve ikinci işlemin açtığı bakiyeler geri alınıyor.
+- İşlem en sonda çalıştırma kaydını yazıyor (yıl, zaman, İK, hak yazılan çalışan sayısı).
+**Neden böyle yaptım (tasarım kararları):**
+- Bakiye açma kuralı Handler'da değil `LeaveBalanceService`'te: yeni yıl (T3) ve yeni çalışan (T4) aynı kuralı kullanıyor; iki yerde yazılsa zamanla birbirinden ayrılırdı. T4'ün de bu metodu çağırması gerektiği servisin javadoc'unda yazıyor.
+- BR-11 kontrolü bakiyelere değil çalıştırma kaydına bakıyor: yıl içinde eklenip T4 ile bakiyesi açılan bir çalışan, o yılın hak edişini yanlışlıkla engellemiyor. Böyle bir çalışan T3'te hata vermeden atlanıyor; atlanmasaydı 409 alır ve bütün işlem geri alınırdı.
+- İzin türleri çalışan başına değil, bir kez okunuyor.
+- Mazeret izni de açılıyor: açılmasaydı yeni yılda mazeret izni talebi `LEAVE_BALANCE_NOT_FOUND` verirdi.
+**Testler:**
+- `RunAnnualAccrualIntegrationTest` (7 test, mediator ve Testcontainers PostgreSQL; İK `@MockitoBean CurrentUserProvider` ile, `EntitlementPolicy` `@MockitoSpyBean` ile veriliyor):
+  - Kıdem ve yaş: 0 yıl → 0, 3 yıl → 14, 10 yıl → 20, 20 yıl → 26, 18 yaş ve 55 yaş → en az 20; mazeret 5 gün; hastalık ve ücretsiz izne bakiye yok.
+  - ACCRUAL hareketleri ve çalıştırma kaydı; 0 günlük yıllık izinde satır var, hareket yok.
+  - Pasif, henüz işe başlamamış ve bakiyesi zaten açık çalışanlar atlanıyor; yalnızca yıllık izni açık olana eksik mazeret açılıyor.
+  - Aktif olmayan ve yıllık sınırı olmayan türlere bakiye açılmıyor; yeni eklenen sınırlı tür açılıyor.
+  - Aynı yıl ikinci kez → 409, hiçbir şey değişmiyor; pasif İK → `INACTIVE_EMPLOYEE`.
+  - **Rollback testi:** 4 çalışandan 3'üncüsünde `EntitlementPolicy` hata fırlatıyor; bakiyeler, hareketler ve çalıştırma kaydı sıfır kalıyor. Kimlikler veritabanında üretildiği için ilk iki çalışanın satırları hata anında veritabanına gönderilmiş oluyor; sıfır kalmaları rollback'in gerçekten olduğunu gösteriyor. Hata giderilince aynı yıl yeniden çalıştırılabiliyor.
+- `RunAnnualAccrualValidatorTest` (6 test): bu yıl ve gelecek yıl kabul, diğer yıllar red; İstanbul'da yeni yıl başladığında "bu yıl" saatin bölgesinden alınıyor.
+- `LeaveBalanceServiceIntegrationTest` (+3 test): `openYearBalances` yıllık ve mazeret açıyor, açık türü atlıyor, işe girişten önceki yıl için hiçbir şey açmıyor.
+- `LeaveBalanceControllerIntegrationTest` (+5 test, gerçek giriş ve JWT): İK 201 ve bakiyesi açık çalışanın atlanması, yönetici 403, aynı yıl 409, geçersiz yıl 400, yıl yok 400.
+- `UseCaseStructureTest`: yeni use case için de geçti.
+- `./mvnw verify`: 284 test, 0 hata.
+**Karşılaştığım sorun ve çözümü:**
+- T4 ile yıl içinde bakiyesi açılmış bir çalışan, `openBalance`'ın tekrar kontrolü yüzünden bütün T3'ü 409 ile geri aldırabilirdi → bakiyesi olan tür hata vermeden atlanıyor ve atlanan çalışan sayısı cevapta dönüyor.
+- Aynı anda iki çalıştırmada ikinci kayıt veritabanı kısıtına takılıyor ve bu hata 500 olarak dönecekti → kayıt `saveAndFlush` ile yazılıp hata 409'a çevrildi.
+**Sunumda anlatacağım tek cümle:**
+Yıllık hak ediş bütün çalışanları tek transaction'da işliyor; testte 3. çalışanda hata çıkartıyorum ve önceki iki çalışanın bakiyeleri de veritabanından geri alınmış oluyor.
