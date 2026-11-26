@@ -102,7 +102,7 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 | ⬜ | BR-09 | Red ve iptalde gerekçe zorunlu | `RejectLeaveValidator`, `CancelLeaveValidator`, `RequestLeaveCancellationValidator` | Bilge, Sude | |
 | ⬜ | BR-10 | Pasif çalışan giriş yapamaz, talep açamaz | `LoginHandler`, `SubmitLeaveHandler` | Onur, Bilge | |
 | ⬜ | BR-11 | Yıllık hak ediş aynı yıl iki kez çalıştırılamaz | `RunAnnualAccrualHandler`, `annual_accrual_runs` tablosu | Zehra | |
-| ⬜ | BR-12 | Kullanılmayan yıllık izin sonraki yıla devreder (bonus) | `RunAnnualAccrualHandler` | Zehra | |
+| ⬜ | BR-12 | Kullanılmayan yıllık izin sonraki yıla devreder (bonus) | `RunCarryOverHandler`, `LeaveBalanceService.carryOver` | Zehra | |
 | ⬜ | BR-13 | En az 2 aktif İK bulunmalı | `UpdateEmployeeHandler`, `DeactivateEmployeeHandler` | Sude | |
 | ⬜ | BR-14 | Sadece talep sahibi, sadece bekleyen talebini geri çekebilir | `WithdrawLeaveHandler` | Bilge | |
 | ⬜ | BR-15 | İptal yetkisi: yönetici; yöneticisi yoksa İK; İK'nın iznini başka bir İK | `CancellationAuthorizationPolicy` | Sude | |
