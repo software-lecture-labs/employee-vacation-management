@@ -18,6 +18,7 @@ import com.dogus.vacation.domain.model.Department;
 import com.dogus.vacation.domain.model.Employee;
 import com.dogus.vacation.domain.model.LeaveBalance;
 import com.dogus.vacation.domain.model.LeaveRequest;
+import com.dogus.vacation.domain.model.LeaveType;
 import com.dogus.vacation.domain.model.enums.Role;
 import com.dogus.vacation.infrastructure.persistence.DepartmentRepository;
 import com.dogus.vacation.infrastructure.persistence.EmployeeRepository;
@@ -223,6 +224,65 @@ class LeaveBalanceServiceIntegrationTest extends AbstractIntegrationTest {
         assertThat(transaction.get("type")).isEqualTo("REFUND");
         assertThat((BigDecimal) transaction.get("days")).isEqualByComparingTo("3");
         assertThat(transaction.get("note")).isEqualTo("İzin talebi #" + request.getId() + " iptal edildi");
+    }
+
+    @Test
+    void refundIgnoresLeaveTypesThatDoNotUseTheBalance() {
+        // Hastalık izninin bakiyesi yoktur; iade bakiye aramadan hiçbir şey yapmamalı.
+        LeaveRequest sickLeave = requestRepository.save(TestData.leaveRequest(employee, leaveType("SICK"),
+                LocalDate.of(YEAR, 12, 1), LocalDate.of(YEAR, 12, 2), "2"));
+
+        inTransaction(() -> service.refund(sickLeave, hr));
+
+        assertThat(countRows("balance_transactions")).isZero();
+    }
+
+    // ---- sözleşme dışı çağrılar ve "yapacak bir şey yok" durumları ----
+
+    @Test
+    void openBalanceRejectsNegativeDays() {
+        BigDecimal negative = new BigDecimal("-1");
+
+        assertThatThrownBy(() -> inTransaction(() ->
+                service.openBalance(employee, leaveType("ANNUAL"), YEAR, negative, hr)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Hak edilen gün negatif olamaz.");
+        assertThat(countRows("leave_balances")).isZero();
+    }
+
+    @Test
+    void openYearBalancesSkipsInactiveAndNonDeductingTypesEvenIfTheyAreGiven() {
+        LeaveType retired = leaveType("EXCUSE");
+        retired.setActive(false);
+
+        var opened = inTransactionReturning(() ->
+                service.openYearBalances(employee, YEAR, List.of(leaveType("SICK"), retired), hr));
+
+        assertThat(opened).isEmpty();
+        assertThat(countRows("leave_balances")).isZero();
+    }
+
+    @Test
+    void carryOverRefusesBalancesOfDifferentLeaveTypes() {
+        LeaveBalance annual = annualBalance("14");
+        LeaveBalance excuseNextYear = balanceRepository.save(
+                TestData.balance(employee, leaveType("EXCUSE"), YEAR + 1, "5"));
+
+        assertThatThrownBy(() -> inTransaction(() -> service.carryOver(annual, excuseNextYear, hr)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void carryOverWithNothingRemainingChangesNothing() {
+        LeaveBalance fullyUsed = TestData.balance(employee, leaveType("ANNUAL"), YEAR, "14");
+        fullyUsed.use(new BigDecimal("14"));
+        LeaveBalance thisYear = balanceRepository.save(fullyUsed);
+        LeaveBalance nextYear = balanceRepository.save(TestData.balance(employee, leaveType("ANNUAL"), YEAR + 1, "20"));
+
+        BigDecimal carried = inTransactionReturning(() -> service.carryOver(thisYear, nextYear, hr));
+
+        assertThat(carried).isEqualByComparingTo("0");
+        assertThat(countRows("balance_transactions")).isZero();
     }
 
     // ---- checkSufficient (talep açma) ----
