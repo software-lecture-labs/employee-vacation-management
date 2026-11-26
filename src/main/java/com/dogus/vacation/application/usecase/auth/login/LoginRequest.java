@@ -12,8 +12,8 @@ import jakarta.validation.constraints.Size;
  * { "email": "ayse.yilmaz@sirket.com", "password": "Sifre123!" }
  * }</pre>
  *
- * <p>Alanlar arası kural olmadığı için ayrı bir Validator yoktur; kullanıcının var olup
- * olmadığı, aktifliği ve şifresi veritabanına baktığı için Handler'da kontrol edilir.
+ * <p>Alanlar arası kural yoktur ({@link LoginValidator} boş liste döner); kullanıcının var
+ * olup olmadığı, aktifliği ve şifresi veritabanına baktığı için Handler'da kontrol edilir.
  *
  * @param email    e-posta; büyük/küçük harf fark etmez
  * @param password şifre (düz metin, sadece istek boyunca; hiçbir yere yazılmaz)
