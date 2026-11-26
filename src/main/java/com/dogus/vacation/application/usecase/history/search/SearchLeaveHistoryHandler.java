@@ -6,7 +6,6 @@ import java.time.OffsetDateTime;
 
 import com.dogus.vacation.application.common.PageResponse;
 import com.dogus.vacation.application.common.mapper.HistoryEntryMapper;
-import com.dogus.vacation.application.common.view.HistoryEntryView;
 import com.dogus.vacation.application.mediator.RequestHandler;
 import com.dogus.vacation.infrastructure.persistence.LeaveRequestHistoryRepository;
 import com.dogus.vacation.infrastructure.persistence.LeaveRequestHistorySpecifications;
@@ -24,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Component
 public class SearchLeaveHistoryHandler
-        implements RequestHandler<SearchLeaveHistoryRequest, PageResponse<HistoryEntryView>> {
+        implements RequestHandler<SearchLeaveHistoryRequest, SearchLeaveHistoryResponse> {
 
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Order.desc("occurredAt"), Sort.Order.desc("id"));
 
@@ -38,7 +37,7 @@ public class SearchLeaveHistoryHandler
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<HistoryEntryView> handle(SearchLeaveHistoryRequest request) {
+    public SearchLeaveHistoryResponse handle(SearchLeaveHistoryRequest request) {
         var spec = LeaveRequestHistorySpecifications.matching(
                 startOf(request.from()),
                 startOf(request.to() == null ? null : request.to().plusDays(1)),
@@ -46,7 +45,8 @@ public class SearchLeaveHistoryHandler
                 request.status(),
                 request.employeeId());
         var pageable = PageRequest.of(request.page(), request.size(), NEWEST_FIRST);
-        return PageResponse.of(historyRepository.findAll(spec, pageable), HistoryEntryMapper::toView);
+        return new SearchLeaveHistoryResponse(
+                PageResponse.of(historyRepository.findAll(spec, pageable), HistoryEntryMapper::toView));
     }
 
     private OffsetDateTime startOf(LocalDate day) {

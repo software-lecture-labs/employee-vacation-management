@@ -193,7 +193,8 @@ class SearchLeaveHistoryIntegrationTest extends AbstractIntegrationTest {
     private PageResponse<HistoryEntryView> search(LocalDate from, LocalDate to, Long departmentId,
                                                   LeaveRequestStatus status, Long employeeId,
                                                   Integer page, Integer size) {
-        return mediator.send(new SearchLeaveHistoryRequest(from, to, departmentId, status, employeeId, page, size));
+        return mediator.send(new SearchLeaveHistoryRequest(from, to, departmentId, status, employeeId, page, size))
+                .history();
     }
 
     private static List<Long> ids(PageResponse<HistoryEntryView> result) {
