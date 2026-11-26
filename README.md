@@ -14,6 +14,36 @@ gösterilir.
 
 _Her ekip üyesi kendi modülünün özelliklerini 27 Kasım'da ekler._
 
+### Bakiye, hak ediş ve izin geçmişi
+
+| Özellik | Uç nokta | Kim kullanır |
+|---|---|---|
+| İzin türlerini listeleme | `GET /api/leave-types` | Giriş yapmış herkes |
+| İzin türü ekleme ve güncelleme | `POST /api/leave-types`, `PUT /api/leave-types/{id}` | İK |
+| Kendi bakiyelerini görme | `GET /api/leave-balances/mine?year=` | Giriş yapmış herkes |
+| Bir çalışanın bakiyelerini görme | `GET /api/employees/{id}/leave-balances?year=` | Yönetici (yalnızca kendi ekibi), İK |
+| Yıllık hak edişi çalıştırma (T3) | `POST /api/leave-balances/accruals` | İK |
+| Kullanılmayan yıllık izni devretme (bonus) | `POST /api/leave-balances/carry-overs?fromYear=` | İK |
+| Şirket izin geçmişinde arama | `GET /api/leave-requests/history` | İK |
+
+- **4 hazır izin türü:** Yıllık (bakiyeden düşer), Mazeret (yılda en fazla 5 gün, bakiyeden düşer), Hastalık ve
+  Ücretsiz (bakiyeden düşmez). İK yeni tür ekleyebilir; türler silinmez, pasife alınır.
+- **Yıllık izin hakkı** kıdem ve yaşa göre hesaplanır: ilk yıl hak yoktur; 1–5 yıl 14 gün, 6–14 yıl 20 gün,
+  15 yıl ve üzeri 26 gün; 18 yaş ve altı ile 50 yaş ve üstü en az 20 gün (ilk yıl hariç). Kıdem yalnızca yıl
+  farkıyla hesaplanır.
+- **İzin günü** başlangıç ve bitiş dahil, yalnızca Pazartesi–Cuma sayılarak hesaplanır.
+- **Her bakiye değişikliği** (hak ediş, düşüm, iade, devir) `balance_transactions` tablosuna bir hareket olarak
+  yazılır; kalan gün saklanmaz, hesaplanır.
+- **Her durum değişikliği** aynı transaction içinde izin geçmişine yazılır; geçmiş yazılamazsa değişiklik de
+  geri alınır.
+- **Yıllık hak ediş** bütün aktif çalışanlara tek transaction'da yazılır ve aynı yıl için ikinci kez
+  çalıştırılamaz. Bir çalışanda hata olursa hiçbir çalışana hak yazılmaz.
+- **Devir** yalnızca biten yıldan bu yıla yapılır; aynı gün iki yılda kullanılamaz ve işlem tekrar
+  çalıştırılsa da bir şey değişmez.
+- **Geçmiş araması** tarih aralığı, departman, durum ve çalışana göre süzülür; sayfa başına en fazla 100 kayıt.
+
+Bütün uç noktaların istek ve cevap örnekleri Swagger UI'dadır.
+
 ## Kullanılan Teknolojiler
 
 _Doldurulacak._
@@ -24,7 +54,26 @@ _Katman diyagramı ve paket yapısı. Ayrıntı: `docs/ARCHITECTURE.md`._
 
 ## Veritabanı Şeması
 
-_Tablo diyagramı ve kararlar. Ayrıntı: `docs/DATABASE_DESIGN.md`; script kaydı: [db/README.md](db/README.md)._
+Veritabanı Supabase'de yönetilen **PostgreSQL 17**; tablolar `leave_mgmt` şemasındadır. Şema
+`db/scripts` altındaki SQL scriptleriyle kurulur; uygulama tablo oluşturmaz, açılışta yalnızca entity'lerle
+uyumu denetler (`ddl-auto: validate`). Testler aynı scriptlerle açılan geçici bir PostgreSQL kullanır
+(Testcontainers).
+
+| Grup | Tablolar |
+|---|---|
+| Organizasyon | `departments`, `employees` |
+| İzin tanımları | `leave_types`, `public_holidays` |
+| İzin işlemleri | `leave_requests`, `leave_balances` |
+| Kayıt (yalnızca eklenir) | `leave_request_history`, `balance_transactions`, `annual_accrual_runs` |
+
+- 9 tablo; 14 yabancı anahtar, 8 CHECK ve 6 UNIQUE kısıtı, 21 indeks.
+- Hiçbir tabloda satır silinmez; çalışan ve izin türü pasife alınır.
+- Aynı kayıt aynı anda iki işlemle değişirse iyimser kilit (`@Version`) ikincisini durdurur ve 409 döner.
+- Gün sayıları `numeric(4,1)` (yarım gün desteklenir).
+
+ER diyagramı, her kısıtın koruduğu iş kuralı, sorgu incelemesi ve indeks kararları:
+[docs/DATABASE_DESIGN.md](docs/DATABASE_DESIGN.md). Scriptlerin sırası ve çalıştırma kaydı:
+[db/README.md](db/README.md).
 
 ## Kurulum ve Çalıştırma
 
@@ -41,6 +90,10 @@ _Swagger UI adresi ve örnek istekler. Ayrıntı: `docs/API_DOCUMENTATION.md`._
 ## Transaction Senaryoları
 
 _Beş transactional işlem (T1–T5) ve rollback testleri._
+
+| # | İşlem | Bir adım hata verirse | Rollback testi |
+|---|---|---|---|
+| T3 | Yıllık hak ediş: bütün aktif çalışanlara hak yazılır, çalıştırma kaydedilir | Hiçbir çalışana hak yazılmaz, çalıştırma kaydı oluşmaz; yıl yeniden çalıştırılabilir | `RunAnnualAccrualIntegrationTest` |
 
 ## Testleri Çalıştırma
 
@@ -94,7 +147,18 @@ satırın `switch` ile yeniden yazılmasıyla uyarı kapanacak. Ekran görüntü
 
 ## Teknik Kararlar
 
-_SOAP/gRPC'ye uyarlanabilirlik ve diğer kararlar. Ayrıntı: `docs/TECHNICAL_DECISIONS.md`._
+**REST yerine SOAP ya da gRPC kullanılsaydı ne değişirdi?** Yalnızca giriş katmanı. Controller'lar iş
+yapmaz; isteği bir Request nesnesine çevirip mediator'a verir. SOAP endpoint'i ya da gRPC servisi de aynı
+nesneyi aynı mediator'a verir. Use case'ler, iş kuralları, veritabanı ve transaction'lar değişmez;
+`application` ve `domain` paketlerinde HTTP'ye ya da Swagger'a ait hiçbir import yoktur.
+
+| Dönüşüm | Kurulum | 8 temel izin işlemi | Bütün işlemler |
+|---|---|---|---|
+| SOAP (Spring-WS) | 1–1,5 kişi-gün | 3–4 kişi-gün | 8–12 kişi-gün |
+| gRPC (Spring gRPC) | 1,5–2 kişi-gün | 4–5 kişi-gün | 9–13 kişi-gün |
+
+Değişen bileşenler tablosu, katmanlar arası bağımlılık kararı ve 13 karar kaydı (karar, neden, alternatif,
+bedeli): [docs/TECHNICAL_DECISIONS.md](docs/TECHNICAL_DECISIONS.md).
 
 ## Ekip
 
