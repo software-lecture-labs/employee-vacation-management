@@ -1,18 +1,23 @@
 package com.dogus.vacation.api;
 
 import com.dogus.vacation.application.mediator.Mediator;
+import com.dogus.vacation.application.usecase.balance.accrual.RunAnnualAccrualRequest;
+import com.dogus.vacation.application.usecase.balance.accrual.RunAnnualAccrualResponse;
 import com.dogus.vacation.application.usecase.balance.employee.GetEmployeeBalancesRequest;
 import com.dogus.vacation.application.usecase.balance.employee.GetEmployeeBalancesResponse;
 import com.dogus.vacation.application.usecase.balance.mine.GetMyBalancesRequest;
 import com.dogus.vacation.application.usecase.balance.mine.GetMyBalancesResponse;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * İzin bakiyesi uç noktaları (FR-32).
+ * İzin bakiyesi uç noktaları (FR-32, FR-34).
  *
  * <p>Controller iş kuralı içermez: isteği Request record'una çevirir ve mediator'a verir.
  * Rol kontrolü burada, kayda bağlı yetki (yönetici yalnızca kendi ekibi) Handler'dadır.
@@ -38,5 +43,17 @@ public class LeaveBalanceController {
     public GetEmployeeBalancesResponse ofEmployee(@PathVariable Long id,
                                                   @RequestParam(required = false) Integer year) {
         return mediator.send(new GetEmployeeBalancesRequest(id, year));
+    }
+
+    /**
+     * Yıllık hak edişi çalıştırır (İK, T3). Bütün aktif çalışanlara o yılın bakiyeleri açılır;
+     * aynı yıl ikinci kez çalıştırılırsa 409. {@code year} burada zorunlu yazılmaz, boş gelirse
+     * istekteki {@code @NotNull} diğer doğrulama hatalarıyla aynı biçimde 400 döner.
+     */
+    @PostMapping("/api/leave-balances/accruals")
+    @PreAuthorize("hasRole('HR')")
+    @ResponseStatus(HttpStatus.CREATED)
+    public RunAnnualAccrualResponse runAccrual(@RequestParam(required = false) Integer year) {
+        return mediator.send(new RunAnnualAccrualRequest(year));
     }
 }
