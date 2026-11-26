@@ -1,6 +1,5 @@
 package com.dogus.vacation.domain.policy;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.Objects;
 
@@ -28,9 +27,11 @@ public class WeekdayWorkingDayCalculator implements WorkingDayCalculator {
                 .count();
     }
 
-    /** Hafta içi günler iş günüdür. */
+    /** Hafta içi günler iş günüdür; cumartesi ve pazar değildir. */
     protected boolean isWorkingDay(LocalDate date) {
-        DayOfWeek day = date.getDayOfWeek();
-        return day != DayOfWeek.SATURDAY && day != DayOfWeek.SUNDAY;
+        return switch (date.getDayOfWeek()) {
+            case SATURDAY, SUNDAY -> false;
+            default -> true;
+        };
     }
 }
