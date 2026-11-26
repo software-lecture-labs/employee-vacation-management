@@ -37,7 +37,7 @@ class ListDepartmentsIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void listsAllDepartmentsSortedByNameOnTheDefaultPage() {
-        PageResponse<DepartmentView> response = mediator.send(new ListDepartmentsRequest(null, null));
+        PageResponse<DepartmentView> response = mediator.send(new ListDepartmentsRequest(null, null)).departments();
 
         assertThat(response.content()).extracting(DepartmentView::name)
                 .containsExactly("Finans", "Pazarlama", "Yazılım");
@@ -50,7 +50,7 @@ class ListDepartmentsIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void returnsTheRequestedPage() {
-        PageResponse<DepartmentView> secondPage = mediator.send(new ListDepartmentsRequest(1, 2));
+        PageResponse<DepartmentView> secondPage = mediator.send(new ListDepartmentsRequest(1, 2)).departments();
 
         assertThat(secondPage.content()).extracting(DepartmentView::name).containsExactly("Yazılım");
         assertThat(secondPage.totalElements()).isEqualTo(3);

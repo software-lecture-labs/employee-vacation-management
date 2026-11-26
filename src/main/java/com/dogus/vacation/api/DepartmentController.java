@@ -1,9 +1,8 @@
 package com.dogus.vacation.api;
 
-import com.dogus.vacation.application.common.PageResponse;
-import com.dogus.vacation.application.common.view.DepartmentView;
 import com.dogus.vacation.application.mediator.Mediator;
 import com.dogus.vacation.application.usecase.department.list.ListDepartmentsRequest;
+import com.dogus.vacation.application.usecase.department.list.ListDepartmentsResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -33,7 +32,7 @@ public class DepartmentController {
      * Örnek: {@code /api/departments?page=0&size=20}
      */
     @GetMapping
-    public PageResponse<DepartmentView> list(
+    public ListDepartmentsResponse list(
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
         return mediator.send(new ListDepartmentsRequest(page, size));

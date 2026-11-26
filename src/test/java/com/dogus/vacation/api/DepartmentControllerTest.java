@@ -20,6 +20,7 @@ import com.dogus.vacation.application.mediator.Mediator;
 import com.dogus.vacation.application.mediator.ValidationError;
 import com.dogus.vacation.application.mediator.ValidationException;
 import com.dogus.vacation.application.usecase.department.list.ListDepartmentsRequest;
+import com.dogus.vacation.application.usecase.department.list.ListDepartmentsResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
@@ -48,23 +49,23 @@ class DepartmentControllerTest {
 
     @Test
     void listReturns200WithAPageOfDepartments() throws Exception {
-        when(mediator.send(any(ListDepartmentsRequest.class))).thenReturn(
-                new PageResponse<>(List.of(new DepartmentView(1L, "Finans")), 0, 20, 1, 1));
+        when(mediator.send(any(ListDepartmentsRequest.class))).thenReturn(new ListDepartmentsResponse(
+                new PageResponse<>(List.of(new DepartmentView(1L, "Finans")), 0, 20, 1, 1)));
 
         mockMvc.perform(get("/api/departments"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].id").value(1))
-                .andExpect(jsonPath("$.content[0].name").value("Finans"))
-                .andExpect(jsonPath("$.page").value(0))
-                .andExpect(jsonPath("$.size").value(20))
-                .andExpect(jsonPath("$.totalElements").value(1));
+                .andExpect(jsonPath("$.departments.content[0].id").value(1))
+                .andExpect(jsonPath("$.departments.content[0].name").value("Finans"))
+                .andExpect(jsonPath("$.departments.page").value(0))
+                .andExpect(jsonPath("$.departments.size").value(20))
+                .andExpect(jsonPath("$.departments.totalElements").value(1));
         verify(mediator).send(new ListDepartmentsRequest(null, null));
     }
 
     @Test
     void listPassesThePagingParameters() throws Exception {
         when(mediator.send(any(ListDepartmentsRequest.class)))
-                .thenReturn(new PageResponse<>(List.of(), 2, 5, 0, 0));
+                .thenReturn(new ListDepartmentsResponse(new PageResponse<>(List.of(), 2, 5, 0, 0)));
 
         mockMvc.perform(get("/api/departments").param("page", "2").param("size", "5"))
                 .andExpect(status().isOk());
