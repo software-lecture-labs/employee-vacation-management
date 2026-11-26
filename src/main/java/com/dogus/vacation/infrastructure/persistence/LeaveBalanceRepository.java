@@ -1,11 +1,14 @@
 package com.dogus.vacation.infrastructure.persistence;
 
+import java.util.List;
 import java.util.Optional;
 
 import com.dogus.vacation.domain.model.Employee;
 import com.dogus.vacation.domain.model.LeaveBalance;
 import com.dogus.vacation.domain.model.LeaveType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
  * {@code leave_balances} tablosu için Spring Data repository'si.
@@ -23,4 +26,19 @@ public interface LeaveBalanceRepository extends JpaRepository<LeaveBalance, Long
 
     /** Aynı yıl için ikinci bakiyenin açılmasını tekil kısıta takılmadan önce yakalamak için. */
     boolean existsByEmployeeAndLeaveTypeAndYear(Employee employee, LeaveType leaveType, Integer year);
+
+    /**
+     * Bir çalışanın bir yıldaki tüm bakiyeleri, izin türü sırasıyla (FR-32).
+     *
+     * <p>İzin türü {@code join fetch} ile aynı sorguda gelir; her satır için ayrı bir tür
+     * sorgusu çalışmaz (N+1 yok).
+     */
+    @Query("""
+            select b from LeaveBalance b
+            join fetch b.leaveType t
+            where b.employee.id = :employeeId and b.year = :year
+            order by t.id
+            """)
+    List<LeaveBalance> findWithLeaveTypeByEmployeeIdAndYear(@Param("employeeId") Long employeeId,
+                                                            @Param("year") Integer year);
 }
