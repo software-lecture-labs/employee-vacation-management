@@ -6,7 +6,7 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 - ⬜ henüz karşılanmadı · ✅ karşılandı (kod `dev`'e birleşti, testi var, Swagger'da çalışıyor)
 - Bir satır yalnızca onu karşılayan PR birleştiğinde, o PR'ın son commit'inde ✅ yapılır ve PR numarası yazılır.
 
-**Özet:** Zorunlu FR 5 / 34 · Bonus FR 0 / 4 · İş kuralı 0 / 18 · Kalite gereksinimi 0 / 11
+**Özet:** Zorunlu FR 9 / 34 · Bonus FR 0 / 4 · İş kuralı 3 / 18 · Kalite gereksinimi 0 / 11
 
 ---
 
@@ -38,11 +38,11 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 |---|---|---|---|---|---|---|
 | ⬜ | FR-12 | İzin türü tanımlama | `GET`, `POST /api/leave-types`, `PUT /api/leave-types/{id}` | `ListLeaveTypes`, `CreateLeaveType`, `UpdateLeaveType` | Zehra | |
 | ⬜ | FR-13 | 4 hazır izin türü | `db/scripts/02_seed_leave_types.sql` | `ListLeaveTypes` | Zehra | |
-| ⬜ | FR-15 | İş günü hesabı | `WorkingDayCalculator` | `SubmitLeave` içinde | Zehra | |
+| ✅ | FR-15 | İş günü hesabı | `WorkingDayCalculator` | `SubmitLeave` içinde | Zehra | #8 |
 | ⬜ | FR-32 | Bakiye görüntüleme | `GET /api/leave-balances/mine`, `GET /api/employees/{id}/leave-balances` | `GetMyBalances`, `GetEmployeeBalances` | Zehra | |
-| ⬜ | FR-33 | Kıdem ve yaşa göre hak hesabı | `EntitlementPolicy` | `CreateEmployee`, `RunAnnualAccrual` içinde | Zehra | |
+| ✅ | FR-33 | Kıdem ve yaşa göre hak hesabı | `EntitlementPolicy` | `CreateEmployee`, `RunAnnualAccrual` içinde | Zehra | #96 |
 | ⬜ | FR-34 | Yıllık hak ediş (T3) | `POST /api/leave-balances/accruals` | `RunAnnualAccrual` | Zehra | |
-| ⬜ | FR-35 | Bakiye hareket kaydı | `LeaveBalanceService`, `balance_transactions` tablosu | Onay, iptal, hak ediş içinde | Zehra | |
+| ✅ | FR-35 | Bakiye hareket kaydı | `LeaveBalanceService`, `balance_transactions` tablosu | Onay, iptal, hak ediş içinde | Zehra | #97 |
 
 ### 1.4 İzin talebi ve onay
 
@@ -74,7 +74,7 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 | Durum | Kod | Gereksinim | Endpoint / bileşen | Use case | Sorumlu | PR |
 |---|---|---|---|---|---|---|
 | ⬜ | FR-26 | İK için şirket izin geçmişi | `GET /api/leave-requests/history` | `SearchLeaveHistory` | Zehra | |
-| ⬜ | FR-27 | Durum geçmişi aynı transaction'da yazılır | `LeaveHistoryService`, `leave_request_history` tablosu | Tüm durum değişiklikleri | Zehra | |
+| ✅ | FR-27 | Durum geçmişi aynı transaction'da yazılır | `LeaveHistoryService`, `leave_request_history` tablosu | Tüm durum değişiklikleri | Zehra | #98 |
 
 ### 1.7 Bonus
 
@@ -91,9 +91,9 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 
 | Durum | Kod | Kural | Uygulandığı yer | Sorumlu | PR |
 |---|---|---|---|---|---|
-| ⬜ | BR-01 | İzin gününe başlangıç ve bitiş dahildir; sadece Pazartesi–Cuma sayılır | `WorkingDayCalculator` | Zehra | |
+| ✅ | BR-01 | İzin gününe başlangıç ve bitiş dahildir; sadece Pazartesi–Cuma sayılır | `WorkingDayCalculator` | Zehra | #8 |
 | ⬜ | BR-02 | Resmi tatiller izin gününden düşülür (bonus) | `HolidayAwareWorkingDayCalculator` | Sude | |
-| ⬜ | BR-03 | Yıllık ve mazeret izni bakiyeden düşer; hastalık ve ücretsiz izin düşmez | `LeaveBalanceService` | Zehra | |
+| ✅ | BR-03 | Yıllık ve mazeret izni bakiyeden düşer; hastalık ve ücretsiz izin düşmez | `LeaveBalanceService` | Zehra | #97 |
 | ⬜ | BR-04 | Mazeret izni yılda en fazla 5 gün | `SubmitLeaveHandler` | Bilge | |
 | ⬜ | BR-05 | Bakiye negatife düşmez; talepte ve onayda iki kez kontrol edilir | `SubmitLeaveHandler`, `LeaveBalanceService.deduct` | Bilge, Zehra | |
 | ⬜ | BR-06 | Geçmiş tarihe talep yok, bitiş başlangıçtan önce olamaz, en fazla 30 iş günü | `SubmitLeaveValidator` | Bilge | |
@@ -106,7 +106,7 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 | ⬜ | BR-13 | En az 2 aktif İK bulunmalı | `UpdateEmployeeHandler`, `DeactivateEmployeeHandler` | Sude | |
 | ⬜ | BR-14 | Sadece talep sahibi, sadece bekleyen talebini geri çekebilir | `WithdrawLeaveHandler` | Bilge | |
 | ⬜ | BR-15 | İptal yetkisi: yönetici; yöneticisi yoksa İK; İK'nın iznini başka bir İK | `CancellationAuthorizationPolicy` | Sude | |
-| ⬜ | BR-16 | Her durum değişikliği aynı transaction'da geçmişe yazılır; yazılamazsa değişiklik geri alınır | `LeaveHistoryService` | Zehra | |
+| ✅ | BR-16 | Her durum değişikliği aynı transaction'da geçmişe yazılır; yazılamazsa değişiklik geri alınır | `LeaveHistoryService` | Zehra | #98 |
 | ⬜ | BR-17 | İptal talebine onaylayıcı karar verir; günler sadece kabul edilince iade edilir | `ApproveLeaveCancellationHandler`, `RejectLeaveCancellationHandler` | Sude | |
 | ⬜ | BR-18 | Başlangıca 3 gün veya daha az kalan iptal talebi acil gösterilir; başlangıç günü gelirse sonuçsuz olur | `CancellationUrgencyPolicy`, `ExpireCancellationRequestsHandler` | Onur | |
 

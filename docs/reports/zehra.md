@@ -394,3 +394,39 @@ Talebin her durum değişikliği aynı transaction'da ve hemen veritabanına yaz
 - Değişiklik başka üyelerin dosyalarına da dokunuyordu → cevap biçimi değişikliği ve paket adı PR açıklamasında ayrıca yazıldı; Bilge'ye yerel çalışmasını nasıl güncelleyeceği not edildi.
 **Sunumda anlatacağım tek cümle:**
 Her use case aynı dört dosyadan oluşuyor ve bu kural bir mimari testiyle her derlemede denetleniyor; yapıya uymayan kod CI'dan geçemiyor.
+
+## 26 Kasım 2026 — feat(balance): bakiye görüntüleme (#107)
+**İlgili gereksinimler:** FR-32 · Issue #34
+**Use case(ler):** `GetMyBalances`, `GetEmployeeBalances`
+**Ne yaptım:**
+- `GET /api/leave-balances/mine?year` (200): giriş yapan çalışanın o yıldaki bakiyeleri; her satırda izin türü, hak edilen, kullanılan ve kalan gün.
+- `GET /api/employees/{id}/leave-balances?year` (200 / 403 / 404): bir çalışanın bakiyeleri; yönetici yalnızca kendi ekibini, İK herkesi görür.
+- `application/common/view/BalanceView` ve `mapper/BalanceMapper`; kalan gün entity'nin `remainingDays()` metodundan geliyor, hesap tek yerde.
+- `LeaveBalanceRepository.findWithLeaveTypeByEmployeeIdAndYear`: bakiyeler izin türüyle birlikte `join fetch` ile tek sorguda, türe göre sıralı.
+- `api/LeaveBalanceController`. İki use case de baştan dört dosyalı (Request, Response, Handler, Validator) yazıldı; #106'daki mimari testi bunları da denetliyor.
+- Onur'un `CurrentUserProvider`'ı (#104) birleşince bu iş yazılabilir hale geldi; ondan önce bloklu kalmıştı.
+- `docs/REQUIREMENTS.md`'de uç noktası olmayan, testleri `dev`'de olan 7 satırımı ✅ yaptım: FR-15 (#8), FR-27 (#98), FR-33 (#96), FR-35 (#97), BR-01 (#8), BR-03 (#97), BR-16 (#98). Uç noktası olan satırlar (FR-12, FR-13, FR-26, FR-32) Swagger denemesinden sonra işaretlenecek.
+- Değişiklikleri 5 commit'e böldüm (görünüm ve sorgu, kendi bakiyeleri, çalışanın bakiyeleri, Controller, testler).
+**Validator'a koyduğum kurallar:**
+- İstek anotasyonları (400): yıl 2000–2100; çalışan id'si zorunlu ve pozitif.
+- `GetMyBalancesValidator`, `GetEmployeeBalancesValidator`: alanlar arası kural yok, boş liste dönüyor; kayda bağlı kurallar Handler'da (javadoc'ta yazıyor).
+**Handler'daki kurallar ve transaction:**
+- `GetMyBalancesHandler` (`@Transactional(readOnly = true)`): yalnızca token'daki çalışan id'si kullanılıyor (`currentEmployeeId()`), çalışan kaydı ayrıca yüklenmiyor. Yıl verilmezse `Clock`'a göre bu yıl.
+- `GetEmployeeBalancesHandler` (`@Transactional(readOnly = true)`): çalışan yoksa `EMPLOYEE_NOT_FOUND` (404). İK herkesi, yönetici yalnızca kendisine doğrudan bağlı çalışanları (`employee.getManager()` kendisi olanlar) görür; diğer durumlarda `ForbiddenActionException(ACTION_NOT_ALLOWED)` (403).
+**Neden böyle yaptım (tasarım kararları):**
+- Yetki iki katmanlı: rol kontrolü bir anotasyonla Controller'da (`@PreAuthorize("hasAnyRole('MANAGER','HR')")`); "bu yönetici bu kişiyi görebilir mi?" ise veritabanındaki yönetici ilişkisine bağlı olduğu için anotasyonla çözülemez, Handler'da. Normal çalışan kendi id'siyle bile ikinci uç noktaya 403 alıyor (plana göre); kendi bakiyesini `/mine`'dan görüyor.
+- `/mine`'da istekte çalışan id'si yok: kimin bakiyesi olduğu yalnızca token'dan geliyor, böylece biri başkasının id'sini yazarak onun bakiyesini göremez (plan 9.2).
+- `join fetch` ile tek sorgu: her bakiye satırında izin türünün adı ve kodu gösteriliyor; ilişki LAZY olduğu için önlem alınmasa her satır ayrı bir tür sorgusu olurdu.
+- Boş liste hata değil: o yıl için bakiye açılmamışsa (örneğin yıllık hak ediş henüz çalıştırılmamışsa) 200 ve boş liste dönüyor.
+- Cevaplar yılı da taşıyor: istekte yıl yoksa hangi yılın gösterildiği cevaptan anlaşılıyor.
+**Testler:**
+- `LeaveBalanceControllerIntegrationTest` (10 test, uçtan uca: gerçek giriş ve JWT, güvenlik filtreleri, mediator, Handler ve Testcontainers PostgreSQL birlikte; Onur'un güvenlik testindeki kalıp):
+  - Kendi bakiyesi ve varsayılan yıl (yıllık 14 / kullanılan 3 / kalan 11, mazeret 5), yıl filtresi, bakiyesi olmayan çalışan için boş liste, 1999 yılı (400), token yok (401).
+  - İK başka bir çalışanı görür (200); yönetici kendi ekibini görür (200), başka ekipten birini göremez (403 `ACTION_NOT_ALLOWED`); çalışan rolü kendi id'siyle bile 403; bulunamayan çalışan 404.
+- `UseCaseStructureTest`: iki yeni use case için de geçti.
+- `./mvnw verify`: 262 test, 0 hata.
+**Karşılaştığım sorun ve çözümü:**
+- Bu iş `CurrentUserProvider` olmadan yazılamıyordu → Onur'un güvenlik PR'ı (#104) birleşince başlandı.
+- `REQUIREMENTS.md`'deki ✅ tanımı "Swagger'da çalışıyor" şartını da içeriyor; demo verisi (DataSeeder) olmadan Swagger'da giriş yapılamıyor → uç noktası olmayan satırlar şimdi işaretlendi; uç noktası olanlar, ekip işleri bitince hazırlanacak test senaryoları dokümanıyla Swagger'da denendikten sonra işaretlenecek.
+**Sunumda anlatacağım tek cümle:**
+Bakiye görüntülemede rolü Spring Security, "bu yönetici bu çalışanı görebilir mi?" sorusunu ise Handler veritabanındaki ilişkiye bakarak cevaplıyor; çalışan kendi bakiyesini token'dan, başkasının id'sini yazamadan görüyor.
