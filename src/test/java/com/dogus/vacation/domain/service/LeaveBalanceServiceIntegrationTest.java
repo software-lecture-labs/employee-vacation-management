@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -105,6 +106,38 @@ class LeaveBalanceServiceIntegrationTest extends AbstractIntegrationTest {
                 .isEqualTo(ErrorCode.DUPLICATE_VALUE);
         assertThat(countRows("leave_balances")).isEqualTo(1);
         assertThat(countRows("balance_transactions")).isEqualTo(1);
+    }
+
+    // ---- openYearBalances (T4 yeni çalışan; T3 aynı kuralı kullanır) ----
+
+    @Test
+    void openYearBalancesOpensAnnualBySeniorityAndExcuseByItsLimit() {
+        // Varsayılan çalışan 2020'de girdi: 2026'da 6 yıl kıdem → 20 gün.
+        List<LeaveBalance> opened = inTransactionReturning(() -> service.openYearBalances(employee, YEAR, hr));
+
+        assertThat(opened).extracting(b -> b.getLeaveType().getCode()).containsExactly("ANNUAL", "EXCUSE");
+        assertThat(opened.get(0).getEntitledDays()).isEqualByComparingTo("20");
+        assertThat(opened.get(1).getEntitledDays()).isEqualByComparingTo("5");
+        assertThat(countRows("leave_balances")).isEqualTo(2);
+        assertThat(countRows("balance_transactions")).isEqualTo(2);
+    }
+
+    @Test
+    void openYearBalancesSkipsTypesThatAreAlreadyOpenInsteadOfFailing() {
+        inTransaction(() -> service.openBalance(employee, leaveType("ANNUAL"), YEAR, new BigDecimal("14"), hr));
+
+        List<LeaveBalance> opened = inTransactionReturning(() -> service.openYearBalances(employee, YEAR, hr));
+
+        assertThat(opened).extracting(b -> b.getLeaveType().getCode()).containsExactly("EXCUSE");
+        assertThat(countRows("leave_balances")).isEqualTo(2);
+    }
+
+    @Test
+    void openYearBalancesOpensNothingBeforeTheHireYear() {
+        List<LeaveBalance> opened = inTransactionReturning(() -> service.openYearBalances(employee, 2019, hr));
+
+        assertThat(opened).isEmpty();
+        assertThat(countRows("leave_balances")).isZero();
     }
 
     // ---- deduct (T1) ----

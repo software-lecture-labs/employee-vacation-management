@@ -1,5 +1,6 @@
 package com.dogus.vacation.infrastructure.persistence;
 
+import java.util.List;
 import java.util.Optional;
 
 import com.dogus.vacation.domain.model.LeaveType;
@@ -27,4 +28,10 @@ public interface LeaveTypeRepository extends JpaRepository<LeaveType, Long> {
 
     /** Güncellenen türün yeni adı başka bir türde kullanılıyor mu. */
     boolean existsByNameAndIdNot(String name, Long id);
+
+    /**
+     * Yıllık bakiyesi açılan türler: aktif ve bakiyeden düşen (BR-03), id sırasıyla.
+     * Hastalık ve ücretsiz izin bakiyeden düşmediği için listeye girmez.
+     */
+    List<LeaveType> findAllByActiveTrueAndDeductsFromBalanceTrueOrderByIdAsc();
 }

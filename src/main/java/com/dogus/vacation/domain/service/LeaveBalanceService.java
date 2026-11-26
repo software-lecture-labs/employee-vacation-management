@@ -1,6 +1,8 @@
 package com.dogus.vacation.domain.service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 import com.dogus.vacation.domain.exception.BusinessException;
@@ -13,8 +15,10 @@ import com.dogus.vacation.domain.model.LeaveBalance;
 import com.dogus.vacation.domain.model.LeaveRequest;
 import com.dogus.vacation.domain.model.LeaveType;
 import com.dogus.vacation.domain.model.enums.BalanceTransactionType;
+import com.dogus.vacation.domain.policy.EntitlementPolicy;
 import com.dogus.vacation.infrastructure.persistence.BalanceTransactionRepository;
 import com.dogus.vacation.infrastructure.persistence.LeaveBalanceRepository;
+import com.dogus.vacation.infrastructure.persistence.LeaveTypeRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,19 +42,32 @@ import org.springframework.transaction.annotation.Transactional;
  * <p><b>Bakiyeden düşmeyen türler (BR-03):</b> Hastalık ve ücretsiz izin gibi
  * {@link LeaveType#isDeductsFromBalance()} {@code false} olan türlerde
  * {@link #checkSufficient}, {@link #deduct} ve {@link #refund} hiçbir şey yapmaz;
- * çağıranın tür kontrolü yapmasına gerek yoktur.
+ * çağıranın tür kontrolü yapmasına gerek yoktur. Bu türler için yıllık bakiye de açılmaz.
+ *
+ * <p><b>Yıllık bakiye kuralı tek yerde:</b> Bir çalışana bir yıl için hangi türlerde kaç
+ * günlük bakiye açılacağı {@link #openYearBalances} içindedir. Yeni yıl (T3) ve yeni çalışan
+ * (T4) aynı metodu çağırır; kural iki ayrı yerde yazılıp zamanla birbirinden ayrılmaz.
  */
 @Service
 @Transactional(propagation = Propagation.MANDATORY)
 public class LeaveBalanceService {
 
+    /** Kıdem ve yaşa göre hesaplanan tür; değişmeyen koduyla bulunur (FR-33). */
+    static final String ANNUAL_LEAVE_CODE = "ANNUAL";
+
     private final LeaveBalanceRepository balanceRepository;
     private final BalanceTransactionRepository transactionRepository;
+    private final LeaveTypeRepository leaveTypeRepository;
+    private final EntitlementPolicy entitlementPolicy;
 
     public LeaveBalanceService(LeaveBalanceRepository balanceRepository,
-                               BalanceTransactionRepository transactionRepository) {
+                               BalanceTransactionRepository transactionRepository,
+                               LeaveTypeRepository leaveTypeRepository,
+                               EntitlementPolicy entitlementPolicy) {
         this.balanceRepository = balanceRepository;
         this.transactionRepository = transactionRepository;
+        this.leaveTypeRepository = leaveTypeRepository;
+        this.entitlementPolicy = entitlementPolicy;
     }
 
     /**
@@ -135,6 +152,73 @@ public class LeaveBalanceService {
             throw new BusinessException(ErrorCode.DUPLICATE_VALUE,
                     "Bu çalışanın " + leaveType.getName() + " bakiyesi " + year + " yılı için zaten açılmış.");
         }
+        return saveNewBalance(employee, leaveType, year, entitledDays, actor);
+    }
+
+    /**
+     * Bir çalışana bir yıl için bütün yıllık bakiyelerini açar (T3 yeni yıl, T4 yeni çalışan).
+     * İzin türlerini kendisi okur; çok sayıda çalışan için türleri bir kez okuyup
+     * {@link #openYearBalances(Employee, int, List, Employee)} kullanın.
+     *
+     * @return açılan bakiyeler; hiçbiri açılmadıysa boş liste
+     */
+    public List<LeaveBalance> openYearBalances(Employee employee, int year, Employee actor) {
+        return openYearBalances(employee, year,
+                leaveTypeRepository.findAllByActiveTrueAndDeductsFromBalanceTrueOrderByIdAsc(), actor);
+    }
+
+    /**
+     * Bir çalışana bir yıl için verilen türlerde bakiye açar. Kurallar:
+     * <ul>
+     *   <li>Yalnızca aktif ve bakiyeden düşen türlere bakiye açılır (BR-03).</li>
+     *   <li>Yıllık izin ({@code ANNUAL}) günü {@link EntitlementPolicy} ile kıdem ve yaşa göre
+     *       hesaplanır (FR-33); diğer türler yıllık sınırları kadar açılır (örneğin mazeret 5 gün).
+     *       Yıllık sınırı olmayan başka bir türün dayanacağı bir gün sayısı olmadığı için ona
+     *       bakiye açılmaz.</li>
+     *   <li>O yıl için o türde bakiyesi zaten olan çalışanın o türü atlanır, hata verilmez.
+     *       Yıl içinde eklenen ve T4 ile bakiyesi açılan çalışan böylece T3'ü bozmaz (BR-11).</li>
+     *   <li>İşe giriş yılı istenen yıldan sonraysa çalışan henüz işe başlamamıştır;
+     *       hiçbir bakiye açılmaz.</li>
+     * </ul>
+     *
+     * @param leaveTypes aday türler; uygun olmayanlar burada elenir
+     * @param actor      işlemi yapan İK çalışanı; ACCRUAL hareketinde "kim" olarak görünür
+     * @return açılan bakiyeler, tür sırasıyla; hiçbiri açılmadıysa boş liste
+     */
+    public List<LeaveBalance> openYearBalances(Employee employee, int year, List<LeaveType> leaveTypes,
+                                               Employee actor) {
+        Objects.requireNonNull(employee, "employee");
+        Objects.requireNonNull(leaveTypes, "leaveTypes");
+        Objects.requireNonNull(actor, "actor");
+        List<LeaveBalance> opened = new ArrayList<>();
+        if (employee.getHireDate().getYear() > year) {
+            return opened;
+        }
+        for (LeaveType leaveType : leaveTypes) {
+            BigDecimal entitledDays = yearlyEntitlement(employee, leaveType, year);
+            if (entitledDays == null
+                    || balanceRepository.existsByEmployeeAndLeaveTypeAndYear(employee, leaveType, year)) {
+                continue;
+            }
+            opened.add(saveNewBalance(employee, leaveType, year, entitledDays, actor));
+        }
+        return opened;
+    }
+
+    /** Türün o yıl için hak edilen günü; bakiye açılmayacaksa {@code null}. */
+    private BigDecimal yearlyEntitlement(Employee employee, LeaveType leaveType, int year) {
+        if (!leaveType.isActive() || !leaveType.isDeductsFromBalance()) {
+            return null;
+        }
+        if (ANNUAL_LEAVE_CODE.equals(leaveType.getCode())) {
+            return BigDecimal.valueOf(
+                    entitlementPolicy.annualLeaveDays(employee.getHireDate(), employee.getBirthDate(), year));
+        }
+        return leaveType.getAnnualLimitDays();
+    }
+
+    private LeaveBalance saveNewBalance(Employee employee, LeaveType leaveType, int year,
+                                        BigDecimal entitledDays, Employee actor) {
         LeaveBalance balance = balanceRepository.save(new LeaveBalance(employee, leaveType, year, entitledDays));
         if (entitledDays.signum() > 0) {
             record(balance, null, BalanceTransactionType.ACCRUAL, entitledDays,
