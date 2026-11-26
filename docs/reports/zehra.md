@@ -632,3 +632,39 @@ Kalan 1 satır ve 2 dal başka modülün sınıflarında (`LeaveTypeRef`, `Leave
 - PowerShell'de commit mesajındaki çift tırnaklar mesajı bölüp commit'i engelliyordu → mesajlarda çift tırnak kullanılmıyor.
 **Sunumda anlatacağım tek cümle:**
 Modülümün kapsamını %94,6'dan %99,9'a çıkardım ve bütün projeyi yerel SonarQube'da taradım; modülümde uyarı kalmadı, Güvenilirlik notu D'den A'ya çıktı.
+
+## 26 Kasım 2026 — docs(db): veritabanı tasarımı dokümanı (#113)
+**İlgili gereksinimler:** NFR-04, NFR-08 · BR-03, BR-04, BR-05, BR-11 · Issue #71
+**Use case(ler):** Yok (doküman)
+**Ne yaptım:**
+- `docs/DATABASE_DESIGN.md` dokümanını yazdım. 10 bölümü var:
+  - genel bakış
+  - Mermaid ile ER diyagramı
+  - tabloların amaçları
+  - kısıtların koruduğu kurallar
+  - sorgu incelemesi ve indeksler
+  - transaction ve eşzamanlılık
+  - veri türü kararları
+  - JPA eşlemesi
+  - scriptler ve ortamlar
+  - güvenlik
+- Sayılar scriptlerden alındı: 9 tablo, 9 birincil anahtar, 14 yabancı anahtar, 8 CHECK, 6 UNIQUE kısıtı, 21 indeks.
+- Her kısıtın yanına hangi iş kuralını koruduğunu yazdım. Veritabanında değil uygulamada tutulan kuralları (çakışma kontrolü, kalan gün hesabı gibi) ayrıca listeledim.
+- #109'daki sorgu incelemesinin ölçümleri, her indeksin hangi sorgu için var olduğu ve eklenmeyen indekslerin gerekçeleri bu dokümana taşındı.
+- Transaction bölümünde şunlar var:
+  - Handler'ın transaction sınırı olması ve servislerin `MANDATORY` ile buna katılması
+  - T1–T5 işlemlerinde bir adım başarısız olursa nelerin geri alındığı
+  - iyimser kilidin (`@Version`) aynı anda yapılan iki işlemde ikincisini nasıl durdurduğu
+- Dokümandaki iddiaları kodla karşılaştırdım. Örneğin `@OneToMany` hiç yok, bütün `@ManyToOne` ilişkileri LAZY, şifreler BCrypt, iyimser kilit çakışması 409 dönüyor.
+- Değişiklik tek commit'te.
+**Neden böyle yaptım (tasarım kararları):**
+- Scriptlerin çalıştırılma sırası ve kontrol sorguları `db/README.md`'de duruyor. Doküman bunları tekrar etmiyor, bağlantı veriyor. Böylece bir değişiklikte tek yer güncelleniyor.
+- ER diyagramı Mermaid ile metin olarak yazıldı. GitHub bunu resim olarak gösteriyor ve şema değişince diyagram aynı PR'da güncellenebiliyor. Ayrı bir resim dosyası zamanla şemadan kopabilirdi.
+- Diğer modüllerin kurallarını REQUIREMENTS.md'deki tanımlarıyla anlattım, sınıf adı vermedim. Ekip arkadaşlarım kodlarını değiştirse de doküman doğru kalıyor.
+- Doküman yalnızca tasarımı değil, gerekçeleri de içeriyor. Örneğin kalan günün tabloda saklanmaması, `numeric(4,1)` seçilmesi ve devrin ayrı bir işlem olması gerekçeleriyle yazıldı. Bir kararı değiştirmek isteyen kişi önce neden alındığını görebiliyor.
+**Testler:**
+- Kod, şema ve test değişikliği yok.
+**Karşılaştığım sorun ve çözümü:**
+- Bölüm başlığı değişince içindekiler bağlantısı çalışmıyordu. GitHub bağlantıyı başlık metninden ürettiği için içindekiler, başlığın yeni hâline göre düzeltildi.
+**Sunumda anlatacağım tek cümle:**
+Veritabanında her kısıtın hangi iş kuralını koruduğunu, her indeksin hangi sorgu için var olduğunu ve bir işlem yarıda kalırsa nelerin geri alındığını tek bir dokümanda gerekçeleriyle topladım.
