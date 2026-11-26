@@ -1,5 +1,6 @@
 package com.dogus.vacation.api;
 
+import com.dogus.vacation.api.docs.LeaveBalanceApi;
 import com.dogus.vacation.application.mediator.Mediator;
 import com.dogus.vacation.application.usecase.balance.accrual.RunAnnualAccrualRequest;
 import com.dogus.vacation.application.usecase.balance.accrual.RunAnnualAccrualResponse;
@@ -21,9 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>Controller iş kuralı içermez: isteği Request record'una çevirir ve mediator'a verir.
  * Rol kontrolü burada, kayda bağlı yetki (yönetici yalnızca kendi ekibi) Handler'dadır.
+ *
+ * <p>Swagger açıklamaları ve örnekleri {@link LeaveBalanceApi}'dedir.
  */
 @RestController
-public class LeaveBalanceController {
+public class LeaveBalanceController implements LeaveBalanceApi {
 
     private final Mediator mediator;
 
@@ -32,12 +35,14 @@ public class LeaveBalanceController {
     }
 
     /** Giriş yapan çalışanın bakiyeleri (giriş yapmış herkes). {@code year} boşsa bu yıl. */
+    @Override
     @GetMapping("/api/leave-balances/mine")
     public GetMyBalancesResponse mine(@RequestParam(required = false) Integer year) {
         return mediator.send(new GetMyBalancesRequest(year));
     }
 
     /** Bir çalışanın bakiyeleri: yönetici yalnızca kendi ekibini, İK herkesi görür. */
+    @Override
     @GetMapping("/api/employees/{id}/leave-balances")
     @PreAuthorize("hasAnyRole('MANAGER', 'HR')")
     public GetEmployeeBalancesResponse ofEmployee(@PathVariable Long id,
@@ -50,6 +55,7 @@ public class LeaveBalanceController {
      * aynı yıl ikinci kez çalıştırılırsa 409. {@code year} burada zorunlu yazılmaz, boş gelirse
      * istekteki {@code @NotNull} diğer doğrulama hatalarıyla aynı biçimde 400 döner.
      */
+    @Override
     @PostMapping("/api/leave-balances/accruals")
     @PreAuthorize("hasRole('HR')")
     @ResponseStatus(HttpStatus.CREATED)
