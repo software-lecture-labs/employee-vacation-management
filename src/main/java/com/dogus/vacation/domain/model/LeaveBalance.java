@@ -20,8 +20,9 @@ import org.hibernate.type.SqlTypes;
  *
  * <p>Kalan gün saklanmaz, {@link #remainingDays()} ile hesaplanır. Gün alanlarının
  * setter'ı yoktur; kullanılan gün yalnızca {@link #use(BigDecimal)} ve
- * {@link #restore(BigDecimal)} ile değişir, bu metotlar da bakiyenin negatife
- * düşmemesini (BR-05) kendileri korur. Değişikliğin hareket kaydını
+ * {@link #restore(BigDecimal)} ile, hak edilen gün yalnızca devirde
+ * ({@link #transferOut(BigDecimal)}, {@link #transferIn(BigDecimal)}) değişir. Bu metotlar
+ * bakiyenin negatife düşmemesini (BR-05) kendileri korur. Değişikliğin hareket kaydını
  * {@code LeaveBalanceService} yazar; entity'yi doğrudan değiştiren kod hareket
  * kaydını atlamış olur.
  */
@@ -114,6 +115,32 @@ public class LeaveBalance extends BaseEntity {
                     + ") kullanılan günden (" + plain(usedDays) + ") fazla olamaz.");
         }
         usedDays = usedDays.subtract(days);
+    }
+
+    /**
+     * Kalan günün bir kısmını sonraki yıla devretmek için bu bakiyeden çıkarır (BR-12).
+     *
+     * <p>Hak edilen gün azalır, kullanılan gün değişmez: "kullanılan" gerçekten alınmış izni
+     * göstermeye devam eder. Devredilen gün artık bu yılda kullanılamaz.
+     *
+     * @param days devredilecek gün, sıfırdan büyük
+     * @throws InsufficientBalanceException kalan gün yetmiyorsa; bakiye değişmez
+     * @throws IllegalArgumentException     gün sıfır veya negatifse
+     */
+    public void transferOut(BigDecimal days) {
+        requireAvailable(days);
+        entitledDays = entitledDays.subtract(days);
+    }
+
+    /**
+     * Önceki yıldan devreden günü bu bakiyeye ekler (BR-12); hak edilen gün artar.
+     *
+     * @param days devreden gün, sıfırdan büyük
+     * @throws IllegalArgumentException gün sıfır veya negatifse
+     */
+    public void transferIn(BigDecimal days) {
+        requirePositive(days);
+        entitledDays = entitledDays.add(days);
     }
 
     private static void requirePositive(BigDecimal days) {

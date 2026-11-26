@@ -41,4 +41,18 @@ public interface LeaveBalanceRepository extends JpaRepository<LeaveBalance, Long
             """)
     List<LeaveBalance> findWithLeaveTypeByEmployeeIdAndYear(@Param("employeeId") Long employeeId,
                                                             @Param("year") Integer year);
+
+    /**
+     * Devir (BR-12): bir türün bir yıldaki bakiyeleri, yalnızca aktif çalışanlarınki, çalışan id
+     * sırasıyla. Devirde önceki ve sonraki yılın bakiyeleri bu sorguyla birer kez okunur; çalışan
+     * başına ayrı sorgu atılmaz.
+     */
+    @Query("""
+            select b from LeaveBalance b
+            join b.employee e
+            where b.leaveType = :leaveType and b.year = :year and e.active = true
+            order by e.id
+            """)
+    List<LeaveBalance> findForActiveEmployees(@Param("leaveType") LeaveType leaveType,
+                                              @Param("year") Integer year);
 }

@@ -140,6 +140,23 @@ class LeaveBalanceServiceIntegrationTest extends AbstractIntegrationTest {
         assertThat(countRows("leave_balances")).isZero();
     }
 
+    // ---- carryOver (BR-12) ----
+
+    @Test
+    void carryOverRefusesBalancesThatAreNotConsecutiveYearsOfTheSameEmployee() {
+        LeaveBalance thisYear = annualBalance("14");
+        LeaveBalance othersNextYear = balanceRepository.save(
+                TestData.balance(hr, leaveType("ANNUAL"), YEAR + 1, "14"));
+        LeaveBalance twoYearsLater = balanceRepository.save(
+                TestData.balance(employee, leaveType("ANNUAL"), YEAR + 2, "14"));
+
+        assertThatThrownBy(() -> inTransaction(() -> service.carryOver(thisYear, othersNextYear, hr)))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> inTransaction(() -> service.carryOver(thisYear, twoYearsLater, hr)))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(countRows("balance_transactions")).isZero();
+    }
+
     // ---- deduct (T1) ----
 
     @Test

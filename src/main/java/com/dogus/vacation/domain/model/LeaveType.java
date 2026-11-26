@@ -21,6 +21,9 @@ import jakarta.persistence.Table;
 @Table(name = "leave_types")
 public class LeaveType extends BaseEntity {
 
+    /** Kıdem ve yaşa göre hesaplanan ve sonraki yıla devreden yıllık iznin kodu (FR-33, BR-12). */
+    public static final String ANNUAL_CODE = "ANNUAL";
+
     @Column(name = "code", nullable = false, updatable = false, length = 30)
     private String code;
 
