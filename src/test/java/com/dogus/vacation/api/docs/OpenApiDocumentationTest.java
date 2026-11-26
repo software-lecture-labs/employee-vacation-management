@@ -21,6 +21,7 @@ import com.dogus.vacation.application.common.view.HistoryEntryView;
 import com.dogus.vacation.application.common.view.LeaveTypeRef;
 import com.dogus.vacation.application.common.view.LeaveTypeView;
 import com.dogus.vacation.application.usecase.balance.accrual.RunAnnualAccrualResponse;
+import com.dogus.vacation.application.usecase.balance.carryover.RunCarryOverResponse;
 import com.dogus.vacation.application.usecase.balance.employee.GetEmployeeBalancesResponse;
 import com.dogus.vacation.application.usecase.balance.mine.GetMyBalancesResponse;
 import com.dogus.vacation.application.usecase.history.search.SearchLeaveHistoryResponse;
@@ -39,7 +40,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 /**
- * Uygulamanın ürettiği OpenAPI belgesini ({@code /v3/api-docs}) okuyup bakiye, izin türü ve
+ * Uygulamanın ürettiği OpenAPI belgesini ({@code /v3/api-docs}) okuyup bakiye, devir, izin türü ve
  * geçmiş uç noktalarının Swagger açıklamalarını denetler.
  *
  * <p>Asıl amaç örneklerin koddan kopmamasıdır: her örneğin alanları ilgili record'un
@@ -65,7 +66,8 @@ class OpenApiDocumentationTest extends AbstractIntegrationTest {
                 new Endpoint("/api/leave-requests/history", "get", "200", SearchLeaveHistoryResponse.class),
                 new Endpoint("/api/leave-balances/mine", "get", "200", GetMyBalancesResponse.class),
                 new Endpoint("/api/employees/{id}/leave-balances", "get", "200", GetEmployeeBalancesResponse.class),
-                new Endpoint("/api/leave-balances/accruals", "post", "201", RunAnnualAccrualResponse.class));
+                new Endpoint("/api/leave-balances/accruals", "post", "201", RunAnnualAccrualResponse.class),
+                new Endpoint("/api/leave-balances/carry-overs", "post", "200", RunCarryOverResponse.class));
     }
 
     @Autowired

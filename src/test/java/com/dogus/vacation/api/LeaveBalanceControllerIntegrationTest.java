@@ -10,12 +10,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 
 import com.dogus.vacation.AbstractIntegrationTest;
+import com.dogus.vacation.domain.model.AnnualAccrualRun;
 import com.dogus.vacation.domain.model.Department;
 import com.dogus.vacation.domain.model.Employee;
 import com.dogus.vacation.domain.model.LeaveBalance;
 import com.dogus.vacation.domain.model.enums.Role;
+import com.dogus.vacation.infrastructure.persistence.AnnualAccrualRunRepository;
 import com.dogus.vacation.infrastructure.persistence.DepartmentRepository;
 import com.dogus.vacation.infrastructure.persistence.EmployeeRepository;
 import com.dogus.vacation.infrastructure.persistence.LeaveBalanceRepository;
@@ -66,6 +69,9 @@ class LeaveBalanceControllerIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private EntityManagerFactory entityManagerFactory;
+
+    @Autowired
+    private AnnualAccrualRunRepository runRepository;
 
     private MockMvc mockMvc;
     private int thisYear;
@@ -272,6 +278,55 @@ class LeaveBalanceControllerIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[0].field").value("year"))
                 .andExpect(jsonPath("$.fieldErrors[0].message").value("Yıl zorunludur."));
+    }
+
+    // ---- POST /api/leave-balances/carry-overs (BR-12) ----
+
+    /** Bağlı çalışanın geçen yılki 14 günü kullanılmamış: bu yılın 14 gününe eklenir. */
+    @Test
+    void hrCarriesLastYearsUnusedAnnualDaysToThisYear() throws Exception {
+        runRepository.save(new AnnualAccrualRun(thisYear, OffsetDateTime.now(clock), hr, 4));
+
+        mockMvc.perform(post("/api/leave-balances/carry-overs").param("fromYear", String.valueOf(thisYear - 1))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(hr)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fromYear").value(thisYear - 1))
+                .andExpect(jsonPath("$.toYear").value(thisYear))
+                .andExpect(jsonPath("$.carriedEmployees").value(1))
+                .andExpect(jsonPath("$.carriedDays").value(14))
+                .andExpect(jsonPath("$.skippedEmployees").value(0));
+
+        mockMvc.perform(get("/api/leave-balances/mine").header(HttpHeaders.AUTHORIZATION, bearer(teamMember)))
+                .andExpect(jsonPath("$.balances[0].leaveType.code").value("ANNUAL"))
+                .andExpect(jsonPath("$.balances[0].entitledDays").value(28))
+                .andExpect(jsonPath("$.balances[0].remainingDays").value(25));
+    }
+
+    @Test
+    void managerCannotCarryOver() throws Exception {
+        runRepository.save(new AnnualAccrualRun(thisYear, OffsetDateTime.now(clock), hr, 4));
+
+        mockMvc.perform(post("/api/leave-balances/carry-overs").param("fromYear", String.valueOf(thisYear - 1))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(manager)))
+                .andExpect(status().isForbidden());
+        assertThat(countRows("balance_transactions")).isZero();
+    }
+
+    @Test
+    void carryOverNeedsThisYearsAccrual() throws Exception {
+        mockMvc.perform(post("/api/leave-balances/carry-overs").param("fromYear", String.valueOf(thisYear - 1))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(hr)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ACCRUAL_NOT_RUN"));
+    }
+
+    @Test
+    void carryOverRejectsAYearOtherThanLastYear() throws Exception {
+        mockMvc.perform(post("/api/leave-balances/carry-overs").param("fromYear", String.valueOf(thisYear))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(hr)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("fromYear"));
     }
 
     // ---- yardımcılar ----
