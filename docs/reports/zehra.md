@@ -668,3 +668,57 @@ Modülümün kapsamını %94,6'dan %99,9'a çıkardım ve bütün projeyi yerel 
 - Bölüm başlığı değişince içindekiler bağlantısı çalışmıyordu. GitHub bağlantıyı başlık metninden ürettiği için içindekiler, başlığın yeni hâline göre düzeltildi.
 **Sunumda anlatacağım tek cümle:**
 Veritabanında her kısıtın hangi iş kuralını koruduğunu, her indeksin hangi sorgu için var olduğunu ve bir işlem yarıda kalırsa nelerin geri alındığını tek bir dokümanda gerekçeleriyle topladım.
+
+## 26 Kasım 2026 — docs(decisions): teknik kararlar dokümanı ve SOLID turu (#114)
+**İlgili gereksinimler:** Ders kriteri E2 (SOAP/gRPC'ye geçiş sorusu), Kriter 4 (SOLID) · Issue #72
+**Use case(ler):** Yok (doküman ve kod incelemesi)
+**Ne yaptım:**
+- `docs/TECHNICAL_DECISIONS.md` dokümanını yazdım. 3 bölümü var:
+  - SOAP ve gRPC'ye uyarlanabilirlik
+  - katmanlar arası bağımlılık yönü
+  - 13 karar kaydı. Her karar aynı biçimde: karar, neden, alternatif, bedeli.
+- Planın 9. bölümünü dokümana taşıdım ve güncel koda göre düzelttim:
+  - `application` ve `domain` paketlerinde HTTP, servlet, Spring MVC ya da Swagger'a ait hiç import olmadığını kontrol ettim.
+  - Plan, Swagger açıklamalarının Request record'larında (`@Schema`) olacağını öngörüyordu. Gerçekte açıklamalar #110'daki `api/docs` arayüzlerinde.
+  - Plan, SOAP/gRPC'de doğrulamanın ayrıca yazılacağını söylüyordu. Gerçekte doğrulamayı mediator yaptığı için yeni giriş katmanında gerekmiyor.
+- Protokole bağlı olabilecek üç ihtiyacın arayüzler arkasında olduğunu gösterdim:
+  - kimlik: `CurrentUserProvider`
+  - token: `AccessTokenIssuer`
+  - hata türü: `ErrorCategory`
+- Planın 26 Kasım "SOLID turu" maddesi gereği Onur'un modülünü inceledim: giriş, profil, 7 güvenlik sınıfı, `OpenApiConfig`. Beş ilkenin hiçbirinde sorun bulmadım. Onur'un dosyalarında değişiklik yapmadım.
+- Değişiklik tek commit'te.
+
+**Efor tahmini (REST yerine ya da yanına başka protokol):**
+
+| Dönüşüm | Kurulum | İşlem başına | 8 temel izin işlemi | 29 işlemin tamamı |
+|---|---|---|---|---|
+| SOAP (Spring-WS, contract-first) | 1–1,5 kişi-gün | 0,25–0,5 kişi-gün | 3–4 kişi-gün | 8–12 kişi-gün |
+| gRPC (Spring gRPC) | 1,5–2 kişi-gün | 0,25–0,5 kişi-gün | 4–5 kişi-gün | 9–13 kişi-gün |
+
+Tahmin proje planında (15 Kasım) yapıldı. Kod yazıldıktan sonra da geçerli: işlem başına iş bir mesaj tanımı, bir çevirici ve bir giriş metodu; Handler'lara dokunulmuyor.
+
+**SOLID turu (Onur'un modülü):**
+
+| İlke | Sonuç | Örnek |
+|---|---|---|
+| S | Uygun | 401 ve 403 cevabını yazan `SecurityErrorWriter` ayrı bir sınıf |
+| O | Uygun | Yeni açık adres = `PUBLIC_PATHS` dizisine bir satır |
+| L | Uygun | `JwtCurrentUserProvider` ile testlerdeki sahte uygulama birbirinin yerine geçiyor |
+| I | Uygun | `AccessTokenIssuer` tek metotlu, `CurrentUserProvider` iki metotlu |
+| D | Uygun | Arayüzü application katmanı tanımlıyor, infrastructure uyguluyor |
+
+İki küçük not çıktı:
+1. `LoginHandler`, Spring'in `PasswordEncoder` arayüzüne bağlı. Web'den bağımsız olduğu için değişiklik gerekmiyor; dokümana yazıldı.
+2. Hata cevabı (`ErrorResponse`) iki ayrı yerde oluşturuluyor (`SecurityErrorWriter`, `GlobalExceptionHandler`). Ortak bir fabrika metodu önerilebilir; karar dosya sahiplerinin.
+
+**Neden böyle yaptım (tasarım kararları):**
+- Doküman yalnızca "neden" sorusuna cevap veriyor. Yapının kendisi (paketler, katman diyagramı) Sude'nin `ARCHITECTURE.md`'sine bırakıldı; veritabanı kararları tekrar edilmedi, `DATABASE_DESIGN.md`'ye bağlantı verildi.
+- Plandaki metni olduğu gibi taşımadım, kodla karşılaştırdım. Plan 15 Kasım'da yazıldı ve uygulamada bazı noktalar daha iyi çözüldü (Swagger arayüzleri, mediator'ın doğrulaması). Doküman bugünkü kodu anlatıyor.
+- Katman bağımlılığında port–adapter (hexagonal) yapı yerine klasik katmanlı yapı seçildi. Port–adapter'ın asıl kazancı veritabanını değiştirebilmek; bu projede veritabanı sabit ve 16 günlük takvimde sınıf sayısını iki-üç katına çıkarmaya değmezdi. Protokol bağımsızlığını zaten giriş tarafındaki mediator sağlıyor.
+- SOLID turunda başka birinin koduna dokunmadım. Bulgular, karar dosya sahibinde kalacak şekilde not olarak hazırlandı.
+**Testler:**
+- Kod ve test değişikliği yok.
+**Karşılaştığım sorun ve çözümü:**
+- #113'ün iki commit'i yalnızca başlık satırıyla gitti; ekip kuralı açıklamayı (Neden / Ne değişti / Test / Refs) zorunlu tutuyor. Commit'ler `dev`'e birleştiği için düzeltmek ortak geçmişi yeniden yazmayı gerektirirdi, bu yüzden olduğu gibi bırakıldı. Bu PR'dan itibaren açıklama PowerShell'de birden fazla `-m` ile yazılıyor.
+**Sunumda anlatacağım tek cümle:**
+REST yerine SOAP ya da gRPC kullanılsa yalnızca giriş katmanı değişir; use case katmanında protokole ait tek bir import bile yok ve kimlik, token ve hata türü arayüzlerin arkasında.
