@@ -724,3 +724,27 @@ Bu iki notu ve Sonar'daki CSRF uyarısı (java:S4502) için bir hatırlatmayı O
 - Planın 9. bölümü bazı noktalarda bugünkü kodla uyuşmuyordu (Swagger anotasyonlarının yeri, SOAP/gRPC'de doğrulamanın nasıl yapılacağı) → metin olduğu gibi taşınmadı; her iddia kodla karşılaştırılıp doküman gerçek duruma göre yazıldı.
 **Sunumda anlatacağım tek cümle:**
 REST yerine SOAP ya da gRPC kullanılsa yalnızca giriş katmanı değişir; use case katmanında protokole ait tek bir import bile yok ve kimlik, token ve hata türü arayüzlerin arkasında.
+
+## 26 Kasım 2026 — docs(readme): bakiye modülü, veritabanı ve teknik kararlar bölümleri (#115)
+**İlgili gereksinimler:** Ders kriteri 3 (kapsamlı README) · Issue #77 (Refs; bu iş için ayrı issue yok)
+**Use case(ler):** Yok (doküman)
+**Ne yaptım:**
+- README'nin 15 başlığından bana ait dördünü doldurdum:
+  - **Özellikler → Bakiye, hak ediş ve izin geçmişi:** 7 uç noktalık tablo (kim kullanabilir dahil); 4 hazır izin türü, kıdem ve yaşa göre hak tablosu, iş günü hesabı, bakiye hareketleri, durum geçmişi, T3, devir ve geçmiş araması kuralları.
+  - **Veritabanı Şeması:** PostgreSQL ve şema bilgisi, 4 tablo grubu, kısıt ve indeks sayıları, satır silinmemesi, iyimser kilit; ayrıntı için `DATABASE_DESIGN.md` ve `db/README.md` bağlantıları.
+  - **Transaction Senaryoları:** tablo başlığı ve T3 satırı (rollback testiyle).
+  - **Teknik Kararlar:** SOAP/gRPC sorusunun kısa cevabı ve efor özeti; ayrıntı için `TECHNICAL_DECISIONS.md` bağlantısı.
+- README'de 66 satır eklendi, 2 satır silindi (yalnızca doldurduğum başlıkların yer tutucu satırları).
+- Yazdığım her kuralı kodla karşılaştırdım (hak tablosu, uç nokta yetkileri, sayfa sınırı, yöneticinin yalnızca kendi ekibini görmesi, T3 testi).
+- Değişiklik tek commit'te.
+**Neden böyle yaptım (tasarım kararları):**
+- README hocanın repoda ilk gördüğü belge, bu yüzden kısa tutuldu: her başlıkta özet ve tablo var, ayrıntı tekrar edilmeden dokümanlara bağlantı verildi.
+- Transaction tablosuna yalnızca T3'ü yazdım; diğer satırlar sahiplerine ait. Tablo başlığı hazır olduğu için diğerleri aynı tabloya satır ekleyecek.
+- Özellikler ve Transaction Senaryoları altındaki ortak açıklama satırlarını bıraktım: diğer üyeler de bu başlıklara yazacak; satırlar 28 Kasım'daki README birleştirmesinde temizlenecek.
+- Aynı gün dört kişi README'ye yazacağı için yalnızca kendi başlıklarımı değiştirdim; böylece birleştirmede çakışma en aza iniyor.
+**Testler:**
+- Kod ve test değişikliği yok.
+**Karşılaştığım sorun ve çözümü:**
+- Bu iş için ayrı bir issue yoktu → PR, README birleştirme issue'suna (#77) `Refs` ile bağlandı; #77'yi 28 Kasım'daki birleştirme kapatacak.
+**Sunumda anlatacağım tek cümle:**
+README'de modülümün uç noktalarını ve kurallarını, veritabanı şemasını ve SOAP/gRPC sorusunun cevabını özetledim; ayrıntılar için hazırladığım dokümanlara tek tıkla ulaşılıyor.
