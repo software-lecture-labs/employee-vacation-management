@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Tüm izin türlerini id sırasıyla döner. Tür sayısı az olduğu için sayfalama yoktur.
- * Doğrulanacak alan olmadığından Validator'ı yoktur.
+ * Doğrulanacak alanı olmadığı için {@link ListLeaveTypesValidator} boş liste döner.
  */
 @Component
 public class ListLeaveTypesHandler implements RequestHandler<ListLeaveTypesRequest, ListLeaveTypesResponse> {
