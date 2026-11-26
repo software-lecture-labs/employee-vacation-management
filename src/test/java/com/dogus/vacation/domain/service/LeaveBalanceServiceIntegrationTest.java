@@ -37,7 +37,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * {@link TransactionTemplate} içinde yapılır. Sonuç, transaction kapandıktan sonra
  * veritabanından okunur; böylece commit veya rollback gerçekten olmuş olur.
  */
-class LeaveBalanceServiceTest extends AbstractIntegrationTest {
+class LeaveBalanceServiceIntegrationTest extends AbstractIntegrationTest {
 
     private static final int YEAR = 2026;
 
