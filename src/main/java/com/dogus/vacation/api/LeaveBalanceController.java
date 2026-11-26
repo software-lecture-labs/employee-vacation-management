@@ -4,6 +4,8 @@ import com.dogus.vacation.api.docs.LeaveBalanceApi;
 import com.dogus.vacation.application.mediator.Mediator;
 import com.dogus.vacation.application.usecase.balance.accrual.RunAnnualAccrualRequest;
 import com.dogus.vacation.application.usecase.balance.accrual.RunAnnualAccrualResponse;
+import com.dogus.vacation.application.usecase.balance.carryover.RunCarryOverRequest;
+import com.dogus.vacation.application.usecase.balance.carryover.RunCarryOverResponse;
 import com.dogus.vacation.application.usecase.balance.employee.GetEmployeeBalancesRequest;
 import com.dogus.vacation.application.usecase.balance.employee.GetEmployeeBalancesResponse;
 import com.dogus.vacation.application.usecase.balance.mine.GetMyBalancesRequest;
@@ -18,7 +20,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * İzin bakiyesi uç noktaları (FR-32, FR-34).
+ * İzin bakiyesi uç noktaları (FR-32, FR-34, BR-12).
  *
  * <p>Controller iş kuralı içermez: isteği Request record'una çevirir ve mediator'a verir.
  * Rol kontrolü burada, kayda bağlı yetki (yönetici yalnızca kendi ekibi) Handler'dadır.
@@ -61,5 +63,17 @@ public class LeaveBalanceController implements LeaveBalanceApi {
     @ResponseStatus(HttpStatus.CREATED)
     public RunAnnualAccrualResponse runAccrual(@RequestParam(required = false) Integer year) {
         return mediator.send(new RunAnnualAccrualRequest(year));
+    }
+
+    /**
+     * Kullanılmayan yıllık izni geçen yıldan bu yıla devreder (İK, BR-12). Yeni kayıt açmaz,
+     * var olan bakiyeleri günceller; ikinci kez çalıştırılırsa devredecek gün kalmadığı için
+     * hiçbir şey değişmez. Bu yüzden 200 döner.
+     */
+    @Override
+    @PostMapping("/api/leave-balances/carry-overs")
+    @PreAuthorize("hasRole('HR')")
+    public RunCarryOverResponse runCarryOver(@RequestParam(required = false) Integer fromYear) {
+        return mediator.send(new RunCarryOverRequest(fromYear));
     }
 }

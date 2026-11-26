@@ -4,6 +4,7 @@ import static com.dogus.vacation.api.docs.ApiExamples.JSON;
 
 import com.dogus.vacation.api.advice.ErrorResponse;
 import com.dogus.vacation.application.usecase.balance.accrual.RunAnnualAccrualResponse;
+import com.dogus.vacation.application.usecase.balance.carryover.RunCarryOverResponse;
 import com.dogus.vacation.application.usecase.balance.employee.GetEmployeeBalancesResponse;
 import com.dogus.vacation.application.usecase.balance.mine.GetMyBalancesResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,7 +20,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
  * İzin bakiyesi ve yıllık hak ediş uç noktalarının Swagger açıklamaları
  * ({@code LeaveBalanceController} uygular).
  */
-@Tag(name = "İzin bakiyeleri", description = "Bakiye görüntüleme ve yıllık hak ediş (T3). FR-32, FR-34")
+@Tag(name = "İzin bakiyeleri",
+        description = "Bakiye görüntüleme, yıllık hak ediş (T3) ve kullanılmayan iznin devri. FR-32, FR-34, BR-12")
 public interface LeaveBalanceApi {
 
     @Operation(summary = "Kendi bakiyelerim",
@@ -94,4 +96,33 @@ public interface LeaveBalanceApi {
     })
     RunAnnualAccrualResponse runAccrual(@Parameter(description = "Hak ediş yılı: bu yıl veya gelecek yıl",
             example = "2027") Integer year);
+
+    @Operation(summary = "Kullanılmayan yıllık izni devret (İK)",
+            description = """
+                    Geçen yılın kalan yıllık izin günlerini bu yılın yıllık izin bakiyesine ekler (BR-12). \
+                    Yalnızca biten yıldan bu yıla yapılır; yıl bitmeden devredilseydi aynı günler iki yılda \
+                    kullanılabilirdi. Önce bu yılın hak edişi çalıştırılmış olmalıdır. Mazeret izni devretmez, \
+                    üst sınır yoktur. Eski yılda hak edilen gün devredilen kadar azalır, kullanılan gün değişmez. \
+                    İkinci kez çalıştırılırsa devredecek gün kalmadığı için hiçbir şey değişmez.""")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Devir yapıldı",
+                    content = @Content(mediaType = JSON,
+                            schema = @Schema(implementation = RunCarryOverResponse.class),
+                            examples = @ExampleObject(name = "2026'dan 2027'ye", value = ApiExamples.CARRY_OVER_RUN))),
+            @ApiResponse(responseCode = "400", description = "Yıl boş ya da geçen yıl değil",
+                    content = @Content(mediaType = JSON, schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(name = "Geçersiz yıl", value = ApiExamples.CARRY_OVER_INVALID_YEAR))),
+            @ApiResponse(responseCode = "401", description = "Token yok, geçersiz veya süresi dolmuş",
+                    content = @Content(mediaType = JSON, schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(name = "Token yok", value = ApiExamples.UNAUTHORIZED))),
+            @ApiResponse(responseCode = "403", description = "İK değil",
+                    content = @Content(mediaType = JSON, schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(name = "Yetki yok", value = ApiExamples.FORBIDDEN))),
+            @ApiResponse(responseCode = "409", description = "Bu yılın hak edişi henüz çalıştırılmamış",
+                    content = @Content(mediaType = JSON, schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(name = "Hak ediş yok",
+                                    value = ApiExamples.CARRY_OVER_ACCRUAL_NOT_RUN)))
+    })
+    RunCarryOverResponse runCarryOver(@Parameter(description = "Günleri devredilecek yıl: geçen yıl",
+            example = "2026") Integer fromYear);
 }

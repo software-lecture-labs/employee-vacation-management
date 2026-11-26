@@ -176,6 +176,26 @@ public final class ApiExamples {
                "message": "Hak ediş yalnızca bu yıl (2026) veya gelecek yıl (2027) için çalıştırılabilir."}]}
             """;
 
+    // ---- devir (BR-12) ----
+
+    public static final String CARRY_OVER_RUN = """
+            {"fromYear": 2026, "toYear": 2027, "carriedEmployees": 131, "carriedDays": 742.5,
+             "skippedEmployees": 1, "runAt": "2027-01-04T09:15:00+03:00"}
+            """;
+
+    public static final String CARRY_OVER_INVALID_YEAR = """
+            {"timestamp": "2027-01-04T09:15:00+03:00", "status": 400, "code": "VALIDATION_FAILED",
+             "message": "İstek geçersiz.", "path": "/api/leave-balances/carry-overs",
+             "fieldErrors": [{"field": "fromYear",
+               "message": "Devir yalnızca geçen yıldan (2026) bu yıla (2027) yapılabilir."}]}
+            """;
+
+    public static final String CARRY_OVER_ACCRUAL_NOT_RUN = """
+            {"timestamp": "2027-01-04T09:15:00+03:00", "status": 409, "code": "ACCRUAL_NOT_RUN",
+             "message": "2027 yılının hak edişi çalıştırılmadan devir yapılamaz.",
+             "path": "/api/leave-balances/carry-overs", "fieldErrors": []}
+            """;
+
     public static final String ACCRUAL_ALREADY_RUN = """
             {"timestamp": "2026-12-15T10:31:02+03:00", "status": 409, "code": "ACCRUAL_ALREADY_RUN",
              "message": "2027 yılının hak edişi zaten çalıştırıldı.",
