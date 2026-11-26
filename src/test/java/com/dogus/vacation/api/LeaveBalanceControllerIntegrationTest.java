@@ -21,6 +21,9 @@ import com.dogus.vacation.infrastructure.persistence.EmployeeRepository;
 import com.dogus.vacation.infrastructure.persistence.LeaveBalanceRepository;
 import com.dogus.vacation.support.TestData;
 import com.jayway.jsonpath.JsonPath;
+import jakarta.persistence.EntityManagerFactory;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,6 +63,9 @@ class LeaveBalanceControllerIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private Clock clock;
+
+    @Autowired
+    private EntityManagerFactory entityManagerFactory;
 
     private MockMvc mockMvc;
     private int thisYear;
@@ -179,6 +185,38 @@ class LeaveBalanceControllerIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.code").value("EMPLOYEE_NOT_FOUND"));
     }
 
+    // ---- sorgu sayısı (N+1 koruması) ----
+
+    /**
+     * Kimlik token'dan okunur, çalışan kaydı yüklenmez; bakiyeler izin türleriyle tek sorguda
+     * gelir. Bakiye sayısı artsa da sorgu sayısı 1 kalmalı.
+     */
+    @Test
+    void mineRunsASingleQueryWhateverTheNumberOfBalances() throws Exception {
+        String token = bearer(teamMember);
+
+        long statements = statementsDuring(() ->
+                mockMvc.perform(get("/api/leave-balances/mine").header(HttpHeaders.AUTHORIZATION, token))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.balances.length()").value(2)));
+
+        assertThat(statements).isEqualTo(1);
+    }
+
+    /** Hedef çalışan, işlemi yapan ve bakiyeler: en fazla 3 sorgu; bakiye başına sorgu yok. */
+    @Test
+    void employeeBalancesRunAtMostThreeQueries() throws Exception {
+        String token = bearer(manager);
+
+        long statements = statementsDuring(() ->
+                mockMvc.perform(get("/api/employees/{id}/leave-balances", teamMember.getId())
+                                .header(HttpHeaders.AUTHORIZATION, token))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.balances.length()").value(2)));
+
+        assertThat(statements).isLessThanOrEqualTo(3);
+    }
+
     // ---- POST /api/leave-balances/accruals ----
 
     /** Bağlı çalışanın bu yılın iki bakiyesi zaten açık (T4 gibi): o atlanır, diğer üçüne açılır. */
@@ -237,6 +275,25 @@ class LeaveBalanceControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     // ---- yardımcılar ----
+
+    /** Ölçülecek istek; MockMvc çağrıları checked exception fırlatabilir. */
+    @FunctionalInterface
+    private interface Call {
+        void run() throws Exception;
+    }
+
+    /** İstek sırasında Hibernate'in hazırladığı SQL ifadesi sayısı (giriş isteği ölçüme dahil değil). */
+    private long statementsDuring(Call call) throws Exception {
+        Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+        statistics.setStatisticsEnabled(true);
+        statistics.clear();
+        try {
+            call.run();
+            return statistics.getPrepareStatementCount();
+        } finally {
+            statistics.setStatisticsEnabled(false);
+        }
+    }
 
     private Employee saveWithPassword(Employee newEmployee) {
         newEmployee.setPasswordHash(passwordEncoder.encode(PASSWORD));
