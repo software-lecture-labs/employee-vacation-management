@@ -473,3 +473,40 @@ Bakiye görüntülemede rolü Spring Security, "bu yönetici bu çalışanı gö
 - Aynı anda iki çalıştırmada ikinci kayıt veritabanı kısıtına takılıyor ve bu hata 500 olarak dönecekti → kayıt `saveAndFlush` ile yazılıp hata 409'a çevrildi.
 **Sunumda anlatacağım tek cümle:**
 Yıllık hak ediş bütün çalışanları tek transaction'da işliyor; testte 3. çalışanda hata çıkartıyorum ve önceki iki çalışanın bakiyeleri de veritabanından geri alınmış oluyor.
+
+## 26 Kasım 2026 — perf(db): sorgu incelemesi, giriş sorgusu indeksi ve N+1 testleri (#109)
+**İlgili gereksinimler:** FR-01, FR-32 · Issue #71 (Refs; ölçümler DATABASE_DESIGN.md'ye girecek)
+**Use case(ler):** `Login` (sorgusu), `GetMyBalances`, `GetEmployeeBalances` (testleri)
+**Ne yaptım:**
+- Planın "Sorgu incelemesi (N+1, indeks)" maddesi. Yerel bir PostgreSQL'de `db/scripts` ile şemayı kurdum; gerçek projeden çok büyük bir veri yükledim (20.000 çalışan, 120.000 bakiye, 100.000 talep, 175.000 geçmiş satırı). Mevcut sorguları Hibernate'in ürettiği biçimde `EXPLAIN ANALYZE` ile çalıştırdım.
+- Bulunan tek sorun: girişteki `findByEmailIgnoreCase` indeksi kullanmıyordu. `EmployeeRepository`'ye `lower()` kullanan bir `@Query` ekledim. Metodun adı ve davranışı aynı kaldı, `LoginHandler` değişmedi. Dosya Onur'un; PR'da inceleyici olarak eklendi.
+- Bakiye uç noktalarına N+1 koruma testleri ekledim.
+- Değişiklikleri 2 commit'e böldüm (giriş sorgusu ve testleri, sorgu sayısı testleri).
+
+**Ölçümler:**
+
+| Sorgu | Plan | Süre | Sonuç |
+|---|---|---|---|
+| Giriş, `upper(email)` (eski hâl) | Seq Scan | 6,4 ms | düzeltildi |
+| Giriş, `lower(email)` (yeni hâl) | Index Scan `uq_employees_email_lower` | 0,07 ms | uygun |
+| Bakiyeler (çalışan + yıl, join fetch) | Index Scan `uq_leave_balances_employee_type_year` | 0,08 ms | uygun |
+| Geçmiş araması, çalışan filtresi | `ix_leave_requests_employee_status` + `ix_leave_request_history_request` | 0,3 ms | uygun |
+| Geçmiş araması, departman filtresi | Index Scan Backward `ix_leave_request_history_occurred_at` | 35 ms | uygun |
+| T3, aktif çalışanlar | Index Scan `employees_pkey` | 5 ms | uygun |
+
+**Neden böyle yaptım (tasarım kararları):**
+- Spring Data metot adındaki `IgnoreCase`'ten `upper(email) = upper(?)` üretiyor; tekil indeks ise `lower(email)` üzerinde. PostgreSQL bir ifade indeksini yalnızca sorgu aynı ifadeyi kullanırsa kullanabiliyor. `lower()` ile hem indeks kullanılıyor hem de giriş, tekillik kısıtıyla aynı kuralla karşılaştırıyor.
+- Metodun adını değiştirmedim: `LoginHandler` ve Onur'un testleri bu adı kullanıyor; davranış (harf duyarsız arama) aynı.
+- Yeni indeks eklemedim. `employees(department_id)` departman filtresinde fark yaratmadı (35 → 42 ms; planlayıcı yine `occurred_at` indeksini seçti). `employees(manager_id)` 2,2 ms'yi 0,5 ms'ye indiriyor ama bu kolonu sorgulayan kod henüz yok. Her indeks her eklemede ve güncellemede ek iş demek; indeksi kullanacak sorgu yazılınca eklenmeli.
+- N+1 açısından proje baştan korumalı: `open-in-view: false` olduğu için Controller'da ya da JSON'a çevirirken gizli lazy-load olamıyor; geçmiş araması `@EntityGraph`, bakiyeler `join fetch` kullanıyor.
+- Sorgu planı testinde `enable_seqscan` kapatılıyor: testteki tablo küçük olduğu için PostgreSQL normalde tabloyu taramayı seçer; tarama kapatılınca kullanılabilecek indeks varsa onu seçer. Test böylece "bu sorgu bu indeksi kullanabilir mi?" sorusunu veri miktarından bağımsız cevaplıyor.
+**Testler:**
+- `EmployeeRepositoryIntegrationTest` (yeni, 4 test, Testcontainers PostgreSQL): harf duyarsız bulma; repository'nin `lower` sorgusunu çalıştırması (Hibernate Statistics); `lower` ile `uq_employees_email_lower` indeksinin kullanılabilmesi; eski `upper` biçiminin kullanamaması (`EXPLAIN`).
+- `LeaveBalanceControllerIntegrationTest` (+2 test, gerçek giriş ve JWT, Hibernate Statistics; giriş isteği ölçüme dahil değil): `/mine` tam 1 sorgu; çalışanın bakiyeleri en fazla 3 sorgu (hedef çalışan, işlemi yapan, bakiyeler).
+- `./mvnw verify`: 290 test, 0 hata.
+**Karşılaştığım sorun ve çözümü:**
+- Testteki küçük tablolarda PostgreSQL indeks olsa da tabloyu taramayı seçiyor; plan "indeks kullanılıyor mu?" sorusunu cevaplamıyordu → plan testi tablo taraması kapalı bir transaction'da (`set local enable_seqscan = off`) çalıştırıldı.
+- İncelemede Supabase projesinin duraklatılmış olduğunu gördüm; projeyi panelden yeniden açtım.
+- Bu madde için ayrı bir issue yok → PR, ölçümlerin gireceği DATABASE_DESIGN.md issue'suna (#71) `Refs` ile bağlandı.
+**Sunumda anlatacağım tek cümle:**
+Sorguları büyük bir veriyle `EXPLAIN` ile inceledim; girişteki sorgunun indeksi kullanmadığını bulup düzelttim, kullanılmayacak indeksleri ölçerek eklemedim ve N+1'e karşı sorgu sayısı testleri yazdım.
