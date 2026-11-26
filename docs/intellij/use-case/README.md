@@ -27,7 +27,7 @@ Bu klasördeki şablon, use case adını bir kez yazınca dördünü birden üre
 ## Kullanım
 
 1. Proje ağacında use case'in paketini oluştur, örneğin
-   `application/usecase/leave/submit`.
+   `application/usecase/leaverequest/submit`.
 2. Pakete sağ tıkla → **New → Use Case**.
 3. Ad olarak sadece use case adını yaz: `SubmitLeave`.
 4. Dört dosya oluşur: `SubmitLeaveRequest`, `SubmitLeaveResponse`,

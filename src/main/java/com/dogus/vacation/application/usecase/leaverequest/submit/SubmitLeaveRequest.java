@@ -1,4 +1,4 @@
-package com.dogus.vacation.application.usecase.leave.submit;
+package com.dogus.vacation.application.usecase.leaverequest.submit;
 
 import java.time.LocalDate;
 
