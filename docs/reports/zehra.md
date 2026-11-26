@@ -535,3 +535,43 @@ Sorguları büyük bir veriyle `EXPLAIN` ile inceledim; girişteki sorgunun inde
 - Projede daha önce Swagger anotasyonu yoktu; diğer modüller de aynı kalıbı kullanabilsin diye ortak örnekler ayrı bir sınıfta toplandı.
 **Sunumda anlatacağım tek cümle:**
 Swagger açıklamalarını controller'dan ayrı arayüzlere yazdım ve örneklerin kodla uyumunu bir testle güvenceye aldım; bir cevaba alan eklenip örnek güncellenmezse build kırılıyor.
+
+## 26 Kasım 2026 — feat(balance): kullanılmayan yıllık iznin sonraki yıla devri (#111)
+**İlgili gereksinimler:** BR-12 (bonus), BR-10 · Issue #84
+**Use case(ler):** `RunCarryOver`
+**Ne yaptım:**
+- `POST /api/leave-balances/carry-overs?fromYear=` (200 / 400 / 403 / 409): İK, geçen yılın kullanılmayan yıllık izin günlerini bu yılın yıllık izin bakiyesine devreder. Cevapta iki yıl, devredilen çalışan sayısı, devredilen toplam gün ve atlanan çalışan sayısı var.
+- `LeaveBalance.transferOut` / `transferIn`: hak edilen gün yalnızca devirde değişiyor. `LeaveBalanceService.carryOver`: iki bakiyeyi ve iki hareketi birlikte yazıyor (eski yılda DEDUCTION "2027 yılına devredildi", yeni yılda ACCRUAL "2026 yılından devreden").
+- `usecase/balance/carryover`: dört dosya (Request, Response, Handler, Validator).
+- `LeaveBalanceRepository.findForActiveEmployees`: aktif çalışanların bir yıldaki bakiyeleri tek sorguda.
+- `ErrorCode.ACCRUAL_NOT_RUN` (409). Dosya Bilge'nin; sınıfın "yeni kural için yeni sabit" kalıbıyla eklendi, PR'da inceleyici olarak eklendi.
+- `LeaveType.ANNUAL_CODE`: "ANNUAL" kodu tek yerde; `LeaveBalanceService` de bunu kullanıyor.
+- Uç noktanın Swagger açıklaması ve örnekleri #110'daki kalıpla eklendi.
+- `docs/REQUIREMENTS.md`'de BR-12 satırının bileşenini `RunCarryOverHandler` olarak güncelledim; ✅ Swagger denemesinden sonra konacak.
+- Değişiklikler 3 commit'te (devir ve kuralları, uç nokta, uç nokta testleri).
+**Validator'a koyduğum kurallar:**
+- İstek anotasyonu (400): yıl zorunlu.
+- `RunCarryOverValidator` (400): yalnızca geçen yıldan bu yıla; "bu yıl" `Clock`'tan alınıyor.
+**Handler'daki kurallar ve transaction:**
+- `RunCarryOverHandler` (`@Transactional`) transaction sınırı; `LeaveBalanceService` (`MANDATORY`) buna katılıyor. Bir çalışanda hata olursa hiçbir devir kalmıyor.
+- Bu yılın hak edişi (T3) çalıştırılmamışsa `ACCRUAL_NOT_RUN` (409): günlerin ekleneceği yeni yıl bakiyeleri henüz yok.
+- BR-10: işlemi yapan İK pasifse `INACTIVE_EMPLOYEE`.
+- Kalanı olan her bakiye devrediliyor; eski yılda kalanı olup yeni yıl bakiyesi bulunmayan çalışan atlanıyor ve sayısı cevapta dönüyor.
+- Aynı anda iki çalıştırmada bakiyelerin iyimser kilidi (`@Version`) ikinci işlemi durduruyor.
+**Neden böyle yaptım (tasarım kararları):**
+- Devir T3'ten ayrı bir işlem: T3 gelecek yıl için Aralık'ta çalıştırılabiliyor. Devir de o anda yapılsaydı çalışan Aralık'ın kalanında aynı günleri kullanabilirdi; günler hem eski yılda kullanılmış hem yeni yıla geçmiş olurdu. Devir yalnızca biten yıldan yapılıyor, kalan gün kesin.
+- Şema değişmedi: devir mevcut ACCRUAL ve DEDUCTION hareketleriyle, notunda ne olduğu yazılarak kaydediliyor. Ayrı bir CARRY_OVER türü şemadaki kısıtın değişmesini ve Supabase'de bir değişiklik çalıştırılmasını gerektirirdi.
+- Eski yılda kullanılan gün değil hak edilen gün azalıyor: `usedDays` her zaman gerçekten alınan izni gösteriyor; devredilen günler kullanılmış sayılıp raporları yanıltmıyor.
+- Eski yılın kalanı sıfırlandığı için ikinci çalıştırma hiçbir şey değiştirmiyor; uç nokta bu yüzden 201 değil 200 dönüyor.
+- Yalnızca yıllık izin devrediyor (mazeret izninde "yılda en fazla 5 gün" kuralı, BR-04, var). Üst sınır yok: kullanılmayan yıllık izin yanmıyor.
+**Testler:**
+- `RunCarryOverIntegrationTest` (5 test, mediator ve Testcontainers PostgreSQL): 20 günün 8'i kullanılmışken 12 günün devri ve iki hareket (eski yıl 8/8, yeni yıl 32); kalanı olmayan, yeni yıl bakiyesi olmayan ve pasif çalışan ile mazeret izninin ayrımı; ikinci çalıştırmada değişiklik olmaması; hak ediş yoksa 409; pasif İK.
+- `RunCarryOverValidatorTest` (5 test): geçen yıl kabul, diğer yıllar red; yılbaşı gecesi İstanbul saatiyle yıl henüz bitmediği için devir reddediliyor.
+- `LeaveBalanceTest` (+5 test), `LeaveBalanceServiceIntegrationTest` (+1 test: farklı çalışan veya ardışık olmayan yıl).
+- `LeaveBalanceControllerIntegrationTest` (+4 test, gerçek giriş ve JWT): İK 200 ve devredilen günlerin `/mine`'da görünmesi (14 + 14 = 28), yönetici 403, hak ediş yoksa 409, geçersiz yıl 400.
+- `OpenApiDocumentationTest` (+3 test): devir örneği `RunCarryOverResponse` ile uyumlu.
+- `./mvnw verify`: 338 test, 0 hata.
+**Karşılaştığım sorun ve çözümü:**
+- Gereksinim listesinde BR-12 `RunAnnualAccrualHandler` içinde düşünülmüştü; ama T3'ün Aralık'ta gelecek yıl için çalıştırılabilmesi, devri T3'e koymayı yanlış yapıyordu (aynı günler iki yılda kullanılabilirdi) → devir, yalnızca biten yıldan yapılan ayrı bir işlem oldu.
+**Sunumda anlatacağım tek cümle:**
+Kullanılmayan yıllık izni, yıl kapandıktan sonra ayrı bir işlemle devrediyorum; eski yılın kalanı sıfırlandığı için aynı gün iki yılda kullanılamıyor ve işlem tekrar çalıştırılsa da bir şey değişmiyor.
