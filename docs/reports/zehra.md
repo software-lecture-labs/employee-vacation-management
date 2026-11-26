@@ -506,7 +506,32 @@ Yıllık hak ediş bütün çalışanları tek transaction'da işliyor; testte 3
 - `./mvnw verify`: 290 test, 0 hata.
 **Karşılaştığım sorun ve çözümü:**
 - Testteki küçük tablolarda PostgreSQL indeks olsa da tabloyu taramayı seçiyor; plan "indeks kullanılıyor mu?" sorusunu cevaplamıyordu → plan testi tablo taraması kapalı bir transaction'da (`set local enable_seqscan = off`) çalıştırıldı.
-- İncelemede Supabase projesinin duraklatılmış olduğunu gördüm; projeyi panelden yeniden açtım.
 - Bu madde için ayrı bir issue yok → PR, ölçümlerin gireceği DATABASE_DESIGN.md issue'suna (#71) `Refs` ile bağlandı.
 **Sunumda anlatacağım tek cümle:**
 Sorguları büyük bir veriyle `EXPLAIN` ile inceledim; girişteki sorgunun indeksi kullanmadığını bulup düzelttim, kullanılmayacak indeksleri ölçerek eklemedim ve N+1'e karşı sorgu sayısı testleri yazdım.
+
+## 26 Kasım 2026 — docs(api): bakiye, izin türü ve geçmiş uç noktalarına Swagger örnekleri (#110)
+**İlgili gereksinimler:** FR-12, FR-26, FR-32, FR-34 · Issue #57
+**Use case(ler):** Swagger açıklamaları: `ListLeaveTypes`, `CreateLeaveType`, `UpdateLeaveType`, `SearchLeaveHistory`, `GetMyBalances`, `GetEmployeeBalances`, `RunAnnualAccrual`
+**Ne yaptım:**
+- Modülümün 7 uç noktasına Swagger açıklamaları ekledim: özet, açıklama (kimin çağırabileceği dahil), parametre açıklamaları ve örnekleri, istek örnekleri, başarı ve hata cevaplarının (400, 401, 403, 404, 409) örnekleri, izin türü eklemede `Location` başlığı.
+- `api/docs/LeaveTypeApi`, `LeaveHistoryApi`, `LeaveBalanceApi`: açıklamalar bu arayüzlerde; üç controller bunları uyguluyor (`implements XxxApi`, `@Override`), davranışları değişmedi.
+- `api/docs/ApiExamples`: bütün örnek JSON'lar tek yerde. Alan adları Response record'larıyla, hata mesajları kodun döndürdüğü metinlerle aynı. Ortak 401 ve 403 örnekleri diğer modüller için de kullanılabilir.
+- Değişiklikleri 3 commit'e böldüm (açıklamalar ve örnekler, controller bağlantısı, test).
+**Neden böyle yaptım (tasarım kararları):**
+- Açıklamalar controller'da değil, ayrı arayüzlerde: Request ve Response record'ları application katmanında; `@Schema` oraya yazılsaydı application katmanı Swagger kütüphanesine bağımlı olurdu (plan, use case'lerin ileride SOAP/gRPC'den de kullanılabilmesini istiyor). Bütün açıklamalar controller'a yazılsaydı da controller'lar yüzlerce satır olurdu.
+- Bedeli, açıklama ile kodun iki ayrı dosyada durması; bunu örneklerin kodla uyumunu denetleyen bir testle karşıladım.
+- `JSON` içerik türü sabiti arayüzlerde değil `ApiExamples`'ta: arayüzde sabit tanımlamak bir kod kokusu sayılıyor (Sonar kuralı S1214).
+**Testler:**
+- `OpenApiDocumentationTest` (23 test): uygulamanın ürettiği `/v3/api-docs` belgesini okuyor.
+  - 7 uç noktada özet, etiket ve her parametrenin açıklaması ile örneği var.
+  - Başarı örneklerinin alanları Response record'larıyla birebir aynı; iç içe görünümler de (`LeaveTypeView`, `BalanceView`, `LeaveTypeRef`, `EmployeeRef`, `PageResponse`, `HistoryEntryView`) denetleniyor.
+  - Bütün hata örnekleri `ErrorResponse` biçiminde ve `status` alanı HTTP koduyla tutarlı.
+  - İstek örnekleri Request record'larıyla uyumlu (güncellemede yoldan gelen `id` hariç).
+  - Örnek geçerli bir JSON değilse ya da bir record'a alan eklenip örnek güncellenmezse test kırılıyor.
+- `./mvnw verify`: 313 test, 0 hata.
+**Karşılaştığım sorun ve çözümü:**
+- Swagger örnekleri elle yazılan metinler; Response'lar değiştikçe sessizce eskiyebilirler → örnekleri record alanlarıyla karşılaştıran test yazıldı.
+- Projede daha önce Swagger anotasyonu yoktu; diğer modüller de aynı kalıbı kullanabilsin diye ortak örnekler ayrı bir sınıfta toplandı.
+**Sunumda anlatacağım tek cümle:**
+Swagger açıklamalarını controller'dan ayrı arayüzlere yazdım ve örneklerin kodla uyumunu bir testle güvenceye aldım; bir cevaba alan eklenip örnek güncellenmezse build kırılıyor.
