@@ -2,6 +2,7 @@ package com.dogus.vacation.api;
 
 import java.time.LocalDate;
 
+import com.dogus.vacation.api.docs.LeaveHistoryApi;
 import com.dogus.vacation.application.mediator.Mediator;
 import com.dogus.vacation.application.usecase.history.search.SearchLeaveHistoryRequest;
 import com.dogus.vacation.application.usecase.history.search.SearchLeaveHistoryResponse;
@@ -16,9 +17,11 @@ import org.springframework.web.bind.annotation.RestController;
  * Şirket izin geçmişi (FR-26).
  *
  * <p><b>Yetki:</b> Yalnızca İK ({@code @PreAuthorize("hasRole('HR')")}); başka rol 403 alır.
+ *
+ * <p>Swagger açıklaması ve örnekleri {@link LeaveHistoryApi}'dedir.
  */
 @RestController
-public class LeaveHistoryController {
+public class LeaveHistoryController implements LeaveHistoryApi {
 
     private final Mediator mediator;
 
@@ -30,6 +33,7 @@ public class LeaveHistoryController {
      * Filtreli ve sayfalı geçmiş; en yeni olay önce. Tarihler {@code yyyy-MM-dd} biçiminde.
      * Örnek: {@code /api/leave-requests/history?from=2026-11-01&to=2026-11-30&status=APPROVED}
      */
+    @Override
     @GetMapping("/api/leave-requests/history")
     @PreAuthorize("hasRole('HR')")
     public SearchLeaveHistoryResponse search(

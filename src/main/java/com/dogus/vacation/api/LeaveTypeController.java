@@ -2,6 +2,7 @@ package com.dogus.vacation.api;
 
 import java.net.URI;
 
+import com.dogus.vacation.api.docs.LeaveTypeApi;
 import com.dogus.vacation.application.mediator.Mediator;
 import com.dogus.vacation.application.usecase.leavetype.create.CreateLeaveTypeRequest;
 import com.dogus.vacation.application.usecase.leavetype.create.CreateLeaveTypeResponse;
@@ -27,10 +28,12 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p><b>Yetki:</b> Listeleme giriş yapmış herkese, ekleme ve güncelleme yalnızca İK'ya açıktır
  * ({@code @PreAuthorize("hasRole('HR')")}); başka rol 403 alır.
+ *
+ * <p>Swagger açıklamaları ve örnekleri {@link LeaveTypeApi}'dedir.
  */
 @RestController
 @RequestMapping("/api/leave-types")
-public class LeaveTypeController {
+public class LeaveTypeController implements LeaveTypeApi {
 
     private final Mediator mediator;
 
@@ -39,12 +42,14 @@ public class LeaveTypeController {
     }
 
     /** Tüm izin türleri (giriş yapmış herkes). */
+    @Override
     @GetMapping
     public ListLeaveTypesResponse list() {
         return mediator.send(new ListLeaveTypesRequest());
     }
 
     /** Yeni izin türü (İK). 201 ve yeni kaydın adresi {@code Location} başlığında döner. */
+    @Override
     @PostMapping
     @PreAuthorize("hasRole('HR')")
     public ResponseEntity<CreateLeaveTypeResponse> create(@RequestBody CreateLeaveTypeRequest request) {
@@ -54,6 +59,7 @@ public class LeaveTypeController {
     }
 
     /** İzin türünün adı, yıllık sınırı ve aktifliği (İK). Kod ve bakiye davranışı değişmez. */
+    @Override
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('HR')")
     public UpdateLeaveTypeResponse update(@PathVariable Long id, @RequestBody UpdateLeaveTypeRequest request) {
