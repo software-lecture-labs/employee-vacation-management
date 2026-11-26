@@ -711,6 +711,8 @@ Tahmin proje planında (15 Kasım) yapıldı. Kod yazıldıktan sonra da geçerl
 1. `LoginHandler`, Spring'in `PasswordEncoder` arayüzüne bağlı. Web'den bağımsız olduğu için değişiklik gerekmiyor; dokümana yazıldı.
 2. Hata cevabı (`ErrorResponse`) iki ayrı yerde oluşturuluyor (`SecurityErrorWriter`, `GlobalExceptionHandler`). Ortak bir fabrika metodu önerilebilir; karar dosya sahiplerinin.
 
+Bu iki notu ve Sonar'daki CSRF uyarısı (java:S4502) için bir hatırlatmayı Onur'a mesajla ilettim; değişiklik kararı ona bırakıldı.
+
 **Neden böyle yaptım (tasarım kararları):**
 - Doküman yalnızca "neden" sorusuna cevap veriyor. Yapının kendisi (paketler, katman diyagramı) Sude'nin `ARCHITECTURE.md`'sine bırakıldı; veritabanı kararları tekrar edilmedi, `DATABASE_DESIGN.md`'ye bağlantı verildi.
 - Plandaki metni olduğu gibi taşımadım, kodla karşılaştırdım. Plan 15 Kasım'da yazıldı ve uygulamada bazı noktalar daha iyi çözüldü (Swagger arayüzleri, mediator'ın doğrulaması). Doküman bugünkü kodu anlatıyor.
@@ -719,6 +721,6 @@ Tahmin proje planında (15 Kasım) yapıldı. Kod yazıldıktan sonra da geçerl
 **Testler:**
 - Kod ve test değişikliği yok.
 **Karşılaştığım sorun ve çözümü:**
-- #113'ün iki commit'i yalnızca başlık satırıyla gitti; ekip kuralı açıklamayı (Neden / Ne değişti / Test / Refs) zorunlu tutuyor. Commit'ler `dev`'e birleştiği için düzeltmek ortak geçmişi yeniden yazmayı gerektirirdi, bu yüzden olduğu gibi bırakıldı. Bu PR'dan itibaren açıklama PowerShell'de birden fazla `-m` ile yazılıyor.
+- Planın 9. bölümü bazı noktalarda bugünkü kodla uyuşmuyordu (Swagger anotasyonlarının yeri, SOAP/gRPC'de doğrulamanın nasıl yapılacağı) → metin olduğu gibi taşınmadı; her iddia kodla karşılaştırılıp doküman gerçek duruma göre yazıldı.
 **Sunumda anlatacağım tek cümle:**
 REST yerine SOAP ya da gRPC kullanılsa yalnızca giriş katmanı değişir; use case katmanında protokole ait tek bir import bile yok ve kimlik, token ve hata türü arayüzlerin arkasında.
