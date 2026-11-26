@@ -10,4 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
  * özel sorgular onları kullanan use case ile birlikte eklenir.
  */
 public interface AnnualAccrualRunRepository extends JpaRepository<AnnualAccrualRun, Long> {
+
+    /** Bu yılın hak edişi daha önce çalıştırıldı mı (BR-11). */
+    boolean existsByYear(Integer year);
 }

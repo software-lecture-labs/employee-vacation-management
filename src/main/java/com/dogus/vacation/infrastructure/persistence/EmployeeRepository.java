@@ -1,5 +1,6 @@
 package com.dogus.vacation.infrastructure.persistence;
 
+import java.util.List;
 import java.util.Optional;
 
 import com.dogus.vacation.domain.model.Employee;
@@ -18,4 +19,10 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
      * ({@code uq_employees_email_lower}), bu yüzden en fazla bir kayıt döner.
      */
     Optional<Employee> findByEmailIgnoreCase(String email);
+
+    /**
+     * Yıllık hak edişte (T3) bakiye açılacak çalışanlar: yalnızca aktifler (BR-10), id sırasıyla.
+     * Sıra sabit olsun diye verilir; hata mesajları ve testler her çalıştırmada aynı çalışanı gösterir.
+     */
+    List<Employee> findAllByActiveTrueOrderByIdAsc();
 }
