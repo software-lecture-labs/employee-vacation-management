@@ -1,0 +1,50 @@
+package com.dogus.vacation.api;
+
+import com.dogus.vacation.application.mediator.Mediator;
+import com.dogus.vacation.application.usecase.employee.get.GetEmployeeRequest;
+import com.dogus.vacation.application.usecase.employee.get.GetEmployeeResponse;
+import com.dogus.vacation.application.usecase.employee.list.ListEmployeesRequest;
+import com.dogus.vacation.application.usecase.employee.list.ListEmployeesResponse;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * Çalışan yönetimi endpoint'leri (FR-06 – FR-09). Hepsi yalnızca İK'ya açıktır; başka rol 403 alır.
+ *
+ * <p>Controller iş kuralı içermez: isteği Request record'una çevirir ve {@link Mediator}'a verir.
+ * Bir çalışanın bakiyeleri ({@code /api/employees/{id}/leave-balances}) bakiye modülündedir.
+ */
+@RestController
+@RequestMapping("/api/employees")
+@PreAuthorize("hasRole('HR')")
+public class EmployeeController {
+
+    private final Mediator mediator;
+
+    public EmployeeController(Mediator mediator) {
+        this.mediator = mediator;
+    }
+
+    /**
+     * Sayfalı ve filtreli çalışan listesi.
+     * Örnek: {@code /api/employees?departmentId=2&active=true&page=0&size=20}
+     */
+    @GetMapping
+    public ListEmployeesResponse list(
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return mediator.send(new ListEmployeesRequest(departmentId, active, page, size));
+    }
+
+    /** Bir çalışanın detayı; pasif çalışan da görüntülenir. */
+    @GetMapping("/{id}")
+    public GetEmployeeResponse get(@PathVariable Long id) {
+        return mediator.send(new GetEmployeeRequest(id));
+    }
+}
