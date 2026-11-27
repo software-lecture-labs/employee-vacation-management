@@ -6,7 +6,7 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 - ⬜ henüz karşılanmadı · ✅ karşılandı (kod `dev`'e birleşti, testi var, Swagger'da çalışıyor)
 - Bir satır yalnızca onu karşılayan PR birleştiğinde, o PR'ın son commit'inde ✅ yapılır ve PR numarası yazılır.
 
-**Özet:** Zorunlu FR 12 / 34 · Bonus FR 0 / 4 · İş kuralı 3 / 18 · Kalite gereksinimi 0 / 11
+**Özet:** Zorunlu FR 14 / 34 · Bonus FR 0 / 4 · İş kuralı 4 / 18 · Kalite gereksinimi 0 / 11
 
 ---
 
@@ -27,8 +27,8 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 | Durum | Kod | Gereksinim | Endpoint / bileşen | Use case | Sorumlu | PR |
 |---|---|---|---|---|---|---|
 | ✅ | FR-06 | Çalışan ekleme ve ilk bakiyeler (T4) | `POST /api/employees` | `CreateEmployee` | Sude | #119 |
-| ⬜ | FR-07 | Çalışan güncelleme | `PUT /api/employees/{id}` | `UpdateEmployee` | Sude | |
-| ⬜ | FR-08 | Çalışanı pasife alma | `POST /api/employees/{id}/deactivate` | `DeactivateEmployee` | Sude | |
+| ✅ | FR-07 | Çalışan güncelleme | `PUT /api/employees/{id}` | `UpdateEmployee` | Sude | #120 |
+| ✅ | FR-08 | Çalışanı pasife alma | `POST /api/employees/{id}/deactivate` | `DeactivateEmployee` | Sude | #120 |
 | ✅ | FR-09 | Çalışan listesi (sayfalı, filtreli) ve detayı | `GET /api/employees`, `GET /api/employees/{id}` | `ListEmployees`, `GetEmployee` | Sude | #118 |
 | ✅ | FR-10 | Departman ekleme, güncelleme, listeleme | `GET`, `POST /api/departments`, `PUT /api/departments/{id}` | `ListDepartments`, `CreateDepartment`, `UpdateDepartment` | Sude || #101, #117 |
 
@@ -103,7 +103,7 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 | ⬜ | BR-10 | Pasif çalışan giriş yapamaz, talep açamaz | `LoginHandler`, `SubmitLeaveHandler` | Onur, Bilge | |
 | ⬜ | BR-11 | Yıllık hak ediş aynı yıl iki kez çalıştırılamaz | `RunAnnualAccrualHandler`, `annual_accrual_runs` tablosu | Zehra | |
 | ⬜ | BR-12 | Kullanılmayan yıllık izin sonraki yıla devreder (bonus) | `RunCarryOverHandler`, `LeaveBalanceService.carryOver` | Zehra | |
-| ⬜ | BR-13 | En az 2 aktif İK bulunmalı | `UpdateEmployeeHandler`, `DeactivateEmployeeHandler` | Sude | |
+| ✅ | BR-13 | En az 2 aktif İK bulunmalı | `HrMinimumRule` (`UpdateEmployeeHandler`, `DeactivateEmployeeHandler`) | Sude | #120 |
 | ⬜ | BR-14 | Sadece talep sahibi, sadece bekleyen talebini geri çekebilir | `WithdrawLeaveHandler` | Bilge | |
 | ⬜ | BR-15 | İptal yetkisi: yönetici; yöneticisi yoksa İK; İK'nın iznini başka bir İK | `CancellationAuthorizationPolicy` | Sude | |
 | ✅ | BR-16 | Her durum değişikliği aynı transaction'da geçmişe yazılır; yazılamazsa değişiklik geri alınır | `LeaveHistoryService` | Zehra | #98 |
