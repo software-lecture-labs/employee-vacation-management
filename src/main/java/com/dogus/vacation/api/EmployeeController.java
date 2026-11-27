@@ -1,13 +1,20 @@
 package com.dogus.vacation.api;
 
+import java.net.URI;
+
 import com.dogus.vacation.application.mediator.Mediator;
+import com.dogus.vacation.application.usecase.employee.create.CreateEmployeeRequest;
+import com.dogus.vacation.application.usecase.employee.create.CreateEmployeeResponse;
 import com.dogus.vacation.application.usecase.employee.get.GetEmployeeRequest;
 import com.dogus.vacation.application.usecase.employee.get.GetEmployeeResponse;
 import com.dogus.vacation.application.usecase.employee.list.ListEmployeesRequest;
 import com.dogus.vacation.application.usecase.employee.list.ListEmployeesResponse;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,6 +47,17 @@ public class EmployeeController {
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
         return mediator.send(new ListEmployeesRequest(departmentId, active, page, size));
+    }
+
+    /**
+     * Yeni çalışan ve bu yılın ilk bakiyeleri (T4). 201 ve yeni kaydın adresi {@code Location}
+     * başlığında döner; şifre cevapta yer almaz.
+     */
+    @PostMapping
+    public ResponseEntity<CreateEmployeeResponse> create(@RequestBody CreateEmployeeRequest request) {
+        CreateEmployeeResponse response = mediator.send(request);
+        URI location = URI.create("/api/employees/" + response.employee().id());
+        return ResponseEntity.created(location).body(response);
     }
 
     /** Bir çalışanın detayı; pasif çalışan da görüntülenir. */
