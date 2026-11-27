@@ -37,6 +37,10 @@ app:
       secret: ${JWT_SECRET}
       # Token süresi (dakika); yenileme (refresh) token yok.
       expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
+  demo:
+    # dev ve local profillerindeki demo kullanıcılarının ortak şifresi (DataSeeder). Boşsa demo
+    # verisi yüklenmez. Sadece ortam değişkeninden / .env'den gelir.
+    password: ${DEMO_PASSWORD:}
 
 springdoc:
   swagger-ui:
