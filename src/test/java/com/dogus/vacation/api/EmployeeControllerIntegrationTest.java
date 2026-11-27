@@ -4,6 +4,7 @@ import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -168,6 +169,53 @@ class EmployeeControllerIntegrationTest extends AbstractIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON).content(newEmployeeJson(hr.getEmail())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("DUPLICATE_VALUE"));
+    }
+
+    // ---- PUT /api/employees/{id} ve POST /api/employees/{id}/deactivate ----
+
+    private String updateJson(Employee employee, String role) {
+        return """
+                {"firstName":"Yeni","lastName":"Ad","email":"%s","hireDate":"%s","birthDate":"%s",
+                 "role":"%s","departmentId":%d}
+                """.formatted(employee.getEmail(), employee.getHireDate(), employee.getBirthDate(), role,
+                department.getId());
+    }
+
+    @Test
+    void hrUpdatesAnEmployee() throws Exception {
+        mockMvc.perform(put("/api/employees/" + manager.getId()).header(HttpHeaders.AUTHORIZATION, bearer(hr))
+                        .contentType(MediaType.APPLICATION_JSON).content(updateJson(manager, "EMPLOYEE")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.employee.id").value(manager.getId()))
+                .andExpect(jsonPath("$.employee.firstName").value("Yeni"))
+                .andExpect(jsonPath("$.employee.role").value("EMPLOYEE"));
+    }
+
+    @Test
+    void aManagerCannotUpdateAnEmployee() throws Exception {
+        mockMvc.perform(put("/api/employees/" + manager.getId()).header(HttpHeaders.AUTHORIZATION, bearer(manager))
+                        .contentType(MediaType.APPLICATION_JSON).content(updateJson(manager, "HR")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void aDeactivatedEmployeeCanNoLongerLogIn() throws Exception {
+        mockMvc.perform(post("/api/employees/" + manager.getId() + "/deactivate")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(hr)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.employee.active").value(false));
+
+        String body = "{\"email\":\"" + manager.getEmail() + "\",\"password\":\"" + PASSWORD + "\"}";
+        mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void theLastActiveHrCannotBeDeactivated() throws Exception {
+        mockMvc.perform(post("/api/employees/" + hr.getId() + "/deactivate")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(hr)))
+                .andExpect(status().is(422))
+                .andExpect(jsonPath("$.code").value("MINIMUM_ACTIVE_HR_REQUIRED"));
     }
 
     private Employee saveWithPassword(Employee newEmployee) {
