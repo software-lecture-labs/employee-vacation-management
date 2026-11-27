@@ -38,6 +38,7 @@ public enum ErrorCode {
     INSUFFICIENT_BALANCE(ErrorCategory.BUSINESS_RULE, "Yetersiz izin bakiyesi."),
     EXCUSE_LEAVE_LIMIT_EXCEEDED(ErrorCategory.BUSINESS_RULE, "Mazeret izni yılda en fazla 5 gün kullanılabilir."),
     MINIMUM_ACTIVE_HR_REQUIRED(ErrorCategory.BUSINESS_RULE, "Şirkette en az 2 aktif İK çalışanı bulunmalı."),
+    MANAGER_CYCLE(ErrorCategory.BUSINESS_RULE, "Yönetici zinciri döngü oluşturamaz; çalışan kendi ekibindeki birine bağlanamaz."),
     INACTIVE_EMPLOYEE(ErrorCategory.BUSINESS_RULE, "Pasif bir çalışan bu işlemi yapamaz.");
 
     private final ErrorCategory category;
