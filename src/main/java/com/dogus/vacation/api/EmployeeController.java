@@ -5,15 +5,20 @@ import java.net.URI;
 import com.dogus.vacation.application.mediator.Mediator;
 import com.dogus.vacation.application.usecase.employee.create.CreateEmployeeRequest;
 import com.dogus.vacation.application.usecase.employee.create.CreateEmployeeResponse;
+import com.dogus.vacation.application.usecase.employee.deactivate.DeactivateEmployeeRequest;
+import com.dogus.vacation.application.usecase.employee.deactivate.DeactivateEmployeeResponse;
 import com.dogus.vacation.application.usecase.employee.get.GetEmployeeRequest;
 import com.dogus.vacation.application.usecase.employee.get.GetEmployeeResponse;
 import com.dogus.vacation.application.usecase.employee.list.ListEmployeesRequest;
 import com.dogus.vacation.application.usecase.employee.list.ListEmployeesResponse;
+import com.dogus.vacation.application.usecase.employee.update.UpdateEmployeeRequest;
+import com.dogus.vacation.application.usecase.employee.update.UpdateEmployeeResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -64,5 +69,17 @@ public class EmployeeController {
     @GetMapping("/{id}")
     public GetEmployeeResponse get(@PathVariable Long id) {
         return mediator.send(new GetEmployeeRequest(id));
+    }
+
+    /** Çalışanın bilgileri; şifre ve aktiflik burada değişmez. Yoldaki id geçerlidir. */
+    @PutMapping("/{id}")
+    public UpdateEmployeeResponse update(@PathVariable Long id, @RequestBody UpdateEmployeeRequest request) {
+        return mediator.send(request.withId(id));
+    }
+
+    /** Çalışanı pasife alır; pasif çalışan giriş yapamaz. Son iki aktif İK pasife alınamaz (BR-13). */
+    @PostMapping("/{id}/deactivate")
+    public DeactivateEmployeeResponse deactivate(@PathVariable Long id) {
+        return mediator.send(new DeactivateEmployeeRequest(id));
     }
 }
