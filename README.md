@@ -81,7 +81,27 @@ _Ön koşullar, `.env` ayarı, Docker Compose ve uygulamayı başlatma. Ayrınt�
 
 ## Demo Kullanıcıları
 
-_Rol, e-posta ve şifre tablosu._
+`dev` ve `local` profillerinde uygulama açılırken, **çalışan tablosu boşsa** demo verisi yüklenir
+(`DataSeeder`): 3 departman, 2 İK, 2 yönetici, 6 çalışan ve hepsinin bu yılki bakiyeleri. Bütün
+kullanıcıların şifresi `.env`'deki `DEMO_PASSWORD` değeridir (grupta değil, özel mesajla paylaşılır);
+boşsa demo verisi yüklenmez. Testlerde ve teslim profilinde demo verisi yoktur.
+
+| Ad Soyad | E-posta | Rol | Departman | Yönetici | Yıllık izin (bu yıl) | Neyi gösterir |
+|---|---|---|---|---|---|---|
+| Zeynep Aydın | `zeynep.aydin@demo.local` | HR | İnsan Kaynakları | — | 20 | İK-1 (demo 7: kendi talebini onaylayamaz) |
+| Murat Çelik | `murat.celik@demo.local` | HR | İnsan Kaynakları | — | 14 | İK-2 (İK-1'in talebini onaylar) |
+| Ahmet Yılmaz | `ahmet.yilmaz@demo.local` | MANAGER | Yazılım Geliştirme | — | 26 | 15+ yıl kıdem |
+| Elif Kaya | `elif.kaya@demo.local` | MANAGER | Satış | — | 20 | |
+| Ayşe Demir | `ayse.demir@demo.local` | EMPLOYEE | Yazılım Geliştirme | Ahmet Yılmaz | 14 | 1–5 yıl kıdem |
+| Can Öztürk | `can.ozturk@demo.local` | EMPLOYEE | Yazılım Geliştirme | Ahmet Yılmaz | 20 | 6–14 yıl kıdem |
+| Ece Arslan | `ece.arslan@demo.local` | EMPLOYEE | Yazılım Geliştirme | Ahmet Yılmaz | 0 | Bu yıl işe girdi |
+| Burak Şahin | `burak.sahin@demo.local` | EMPLOYEE | Satış | Elif Kaya | 20 | 18 yaş koruması |
+| Selin Koç | `selin.koc@demo.local` | EMPLOYEE | Satış | Elif Kaya | 20 | 50 yaş koruması |
+| Deniz Aksoy | `deniz.aksoy@demo.local` | EMPLOYEE | Satış | — | 14 | Yöneticisi yok, talebini İK onaylar (BR-07) |
+
+Herkesin ayrıca 5 günlük mazeret izni bakiyesi vardır. Bakiyeler yıllık hak edişle aynı kuralla
+(`LeaveBalanceService.openYearBalances`) açılır; `annual_accrual_runs` tablosuna kayıt yazılmadığı için
+bu yıl için T3 yine çalıştırılabilir.
 
 ## API Dokümantasyonu
 

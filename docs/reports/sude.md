@@ -170,3 +170,28 @@ Son iki İK'dan biri pasife alınmak ya da rolü değiştirilmek istenirse siste
 **Açık kalanlar:**
 - Swagger açıklamaları.
 
+## 27 Kasım 2026 — feat(db): demo verisini yükleyen DataSeeder'ı ekle (#121)
+**İlgili gereksinimler:** Demo senaryosu (plan 12, 15); NFR-04 (demo şifresi koda yazılmıyor)
+**Use case(ler):** Yok (altyapı); bakiyeler `LeaveBalanceService.openYearBalances` ile
+**Ne yaptım:**
+- `DataSeeder` (`infrastructure/seed`): yalnızca `dev` ve `local` profillerinde, açılışta ve çalışan tablosu boşsa; 3 departman, 2 İK, 2 yönetici, 6 çalışan.
+- Kıdem ve yaşlar hak kuralını gösterecek şekilde seçildi (14 / 20 / 26 gün, 18 ve 50 yaş koruması, bu yıl giren); bir çalışanın yöneticisi yok (BR-07).
+- Şifre `DEMO_PASSWORD`'den (`app.demo.password`); boşsa veri yüklenmiyor. `.env.example`'a satır eklendi.
+- README "Demo Kullanıcıları" tablosu dolduruldu.
+**Validator'a koyduğum kurallar:**
+- Yok (use case değil).
+**Handler'daki kurallar ve transaction:**
+- Bütün yükleme tek `TransactionTemplate` içinde: yarıda hata çıkarsa yarım demo verisi kalmaz.
+- Zehra'nın notuna uygun: bakiyeler T4 ile aynı metotla açılıyor, `annual_accrual_runs`'a kayıt yazılmıyor (yazılsaydı bu yıl T3 çalışmazdı).
+**Neden böyle yaptım (tasarım kararları):**
+- "Tablo boşsa" kuralı ortak Supabase'deki elle eklenmiş kayıtları korur (plan 6. ortak veritabanı kuralı).
+- Tarihler sabit değil, bu yıla göre hesaplanıyor: demo hangi yıl açılırsa açılsın aynı hakları gösterir.
+**Testler:**
+- `DataSeederIntegrationTest` — test profilinde bean yok; 2/2/6 kişi ve 20 bakiye; hak kuralları (26, 20, 14, 18 yaş, 50 yaş, 0); demo şifresiyle giriş; yöneticisiz çalışan; tablo doluysa ve ikinci çalıştırmada hiçbir şey yazmıyor; şifre yoksa yüklemiyor
+**Karşılaştığım sorun ve çözümü:**
+- Demo 5'teki "bakiyesi 3 gün olan çalışan" onay akışıyla (T1) birlikte hazırlanacak; seeder bakiye kullanımı yazmıyor, çünkü kullanım hareketi bir izin talebine bağlı.
+**Sunumda anlatacağım tek cümle:**
+Uygulama demo profilinde açılınca on kişilik bir şirket hazır geliyor; herkesin izin hakkı kıdem ve yaşa göre gerçek kuralla hesaplanmış oluyor.
+**Açık kalanlar:**
+- Demo şifresinin ekibe özel mesajla iletilmesi.
+
