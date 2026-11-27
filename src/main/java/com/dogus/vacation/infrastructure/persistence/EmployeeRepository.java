@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 import com.dogus.vacation.domain.model.Employee;
+import com.dogus.vacation.domain.model.enums.Role;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -50,4 +51,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
      * Sıra sabit olsun diye verilir; hata mesajları ve testler her çalıştırmada aynı çalışanı gösterir.
      */
     List<Employee> findAllByActiveTrueOrderByIdAsc();
+
+    /** BR-13 için: belirli roldeki aktif çalışan sayısı (en az 2 aktif İK kalmalı). */
+    long countByRoleAndActiveTrue(Role role);
 }
