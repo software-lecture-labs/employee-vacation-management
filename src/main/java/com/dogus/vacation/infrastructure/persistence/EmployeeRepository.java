@@ -4,7 +4,12 @@ import java.util.List;
 import java.util.Optional;
 
 import com.dogus.vacation.domain.model.Employee;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -14,7 +19,17 @@ import org.springframework.data.repository.query.Param;
  * <p>Temel kaydetme, bulma ve listeleme metotları {@link JpaRepository}'den gelir;
  * özel sorgular onları kullanan use case ile birlikte eklenir.
  */
-public interface EmployeeRepository extends JpaRepository<Employee, Long> {
+public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSpecificationExecutor<Employee> {
+
+    /**
+     * Çalışan listesi (FR-09). Her satırda departman adı ve yönetici adı gösterildiği için
+     * ikisi ana sorguya katılır; yoksa 20 satırlık sayfada her çalışan için ayrı departman ve
+     * yönetici sorgusu atılırdı ("N+1 sorunu").
+     */
+    @Override
+    @EntityGraph(attributePaths = {"department", "manager"})
+    Page<Employee> findAll(Specification<Employee> spec, Pageable pageable);
+
 
     /**
      * Girişte kullanılır. E-posta büyük/küçük harfe duyarsız tekildir
