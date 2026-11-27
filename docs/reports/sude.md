@@ -61,3 +61,32 @@ Kod kalitesini ilk günden yerel SonarQube ile ölçtük; her taramanın sonucu 
 Departman listesi Controller → Mediator → Handler → Repository yolunu en sade haliyle gösteren referans use case'tir; sayfalama ve hata biçimi bütün listelerle aynıdır.
 **Açık kalanlar:**
 - Kimlik kontrolü (güvenlik PR'ından sonra), Swagger örnekleri (24 Kasım).
+
+## 27 Kasım 2026 — feat(department): departman ekleme ve güncellemeyi ekle (#117)
+**İlgili gereksinimler:** FR-10 (tamamlandı: listeleme #101, ekleme ve güncelleme bu PR)
+**Use case(ler):** `CreateDepartment`, `UpdateDepartment`
+**Ne yaptım:**
+- `POST /api/departments` (201 ve `Location` başlığı) ve `PUT /api/departments/{id}`; ikisi de yalnızca İK (`@PreAuthorize("hasRole('HR')")`).
+- Her use case dört dosya (Request, Response, Handler, Validator); cevaplar ortak `DepartmentView`'ı kullanıyor.
+- `DepartmentRepository`: `existsByNameIgnoreCase`, `existsByNameIgnoreCaseAndIdNot`.
+- `DepartmentController` artık listeleme, ekleme ve güncellemeyi birlikte sunuyor.
+**Validator'a koyduğum kurallar:**
+- Alanlar arası kural yok; ad zorunlu ve en fazla 100 karakter (istek anotasyonları).
+**Handler'daki kurallar ve transaction:**
+- Ad büyük/küçük harfe bakmadan tekil: çakışırsa 409 `DUPLICATE_VALUE` (veritabanının tekil kısıtına takılıp 500 dönmesin diye önceden kontrol).
+- Olmayan departman güncellenirse 404 `DEPARTMENT_NOT_FOUND`; departman kendi adını koruyabilir.
+- Baştaki ve sondaki boşluklar atılıyor; her işlem tek transaction.
+**Neden böyle yaptım (tasarım kararları):**
+- "Finans" ile "finans" iki ayrı departman olmasın diye ad kontrolü harf duyarsız; veritabanı kısıtı harfe duyarlı olduğu için bu kural uygulama katmanında.
+- Departman silinmez (çalışanlar ona bağlı), bu yüzden silme uç noktası yok.
+- Güncellenecek kaydın id'si yoldan alınır (`withId`); gövdedeki id yok sayılır. İzin türlerindeki yapıyla aynı.
+**Testler:**
+- `DepartmentUseCasesIntegrationTest` — ekleme, boşluk temizleme, harf duyarsız çakışma, boş ve uzun ad, güncelleme, aynı adı koruma, başka departmanın adı, olmayan departman
+- `DepartmentControllerIntegrationTest` — uçtan uca: herkes listeler, token yoksa 401, İK ekler (201) ve günceller (200), çalışan 403, çakışma 409, boş ad 400, olmayan departman 404
+**Karşılaştığım sorun ve çözümü:**
+- Testte "Bilgi İşlem" ile "bilgi işlem" eşleşmedi: PostgreSQL `upper` Türkçe İ/i harflerini farklı çeviriyor. Testlerde bu harfleri içermeyen adlar kullanıldı; gerçek kullanımda da bu sınır README'de not edilebilir.
+**Sunumda anlatacağım tek cümle:**
+Departman yönetiminde yetki controller'da, ad tekilliği Handler'da, biçim kuralları istekte; her katman tek bir işi yapıyor.
+**Açık kalanlar:**
+- Swagger açıklamaları ve örnekleri.
+
