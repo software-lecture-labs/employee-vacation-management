@@ -6,7 +6,7 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 - ⬜ henüz karşılanmadı · ✅ karşılandı (kod `dev`'e birleşti, testi var, Swagger'da çalışıyor)
 - Bir satır yalnızca onu karşılayan PR birleştiğinde, o PR'ın son commit'inde ✅ yapılır ve PR numarası yazılır.
 
-**Özet:** Zorunlu FR 11 / 34 · Bonus FR 0 / 4 · İş kuralı 3 / 18 · Kalite gereksinimi 0 / 11
+**Özet:** Zorunlu FR 12 / 34 · Bonus FR 0 / 4 · İş kuralı 3 / 18 · Kalite gereksinimi 0 / 11
 
 ---
 
@@ -26,7 +26,7 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 
 | Durum | Kod | Gereksinim | Endpoint / bileşen | Use case | Sorumlu | PR |
 |---|---|---|---|---|---|---|
-| ⬜ | FR-06 | Çalışan ekleme ve ilk bakiyeler (T4) | `POST /api/employees` | `CreateEmployee` | Sude | |
+| ✅ | FR-06 | Çalışan ekleme ve ilk bakiyeler (T4) | `POST /api/employees` | `CreateEmployee` | Sude | #119 |
 | ⬜ | FR-07 | Çalışan güncelleme | `PUT /api/employees/{id}` | `UpdateEmployee` | Sude | |
 | ⬜ | FR-08 | Çalışanı pasife alma | `POST /api/employees/{id}/deactivate` | `DeactivateEmployee` | Sude | |
 | ✅ | FR-09 | Çalışan listesi (sayfalı, filtreli) ve detayı | `GET /api/employees`, `GET /api/employees/{id}` | `ListEmployees`, `GetEmployee` | Sude | #118 |
@@ -139,7 +139,7 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 | ⬜ | T1 | İzin onayı: durum, geçmiş, bakiye düşümü | `ApproveLeave` | Bakiye yetmezse talep PENDING kalır, geçmiş satırı ve bakiye hareketi oluşmaz | | Bilge | |
 | ⬜ | T2 | Onaylı iznin iptali: durum, geçmiş, bakiye iadesi | `CancelLeave`, `ApproveLeaveCancellation` | Herhangi bir adım hata verirse izin APPROVED kalır, gün iade edilmez | | Sude | |
 | ✅ | T3 | Yıllık hak ediş: tüm aktif çalışanlar | `RunAnnualAccrual` | Bir çalışanda hata olursa hiçbir çalışana hak yazılmaz | `RunAnnualAccrualIntegrationTest.aFailureHalfwayRollsBackEverythingAndTheYearCanBeRunAgain` | Zehra | #108 |
-| ⬜ | T4 | Çalışan ekleme ve ilk bakiyeler | `CreateEmployee` | Bakiye adımı hata verirse çalışan da oluşmaz | | Sude | |
+| ✅ | T4 | Çalışan ekleme ve ilk bakiyeler | `CreateEmployee` | Bakiye adımı hata verirse çalışan da oluşmaz | `CreateEmployeeIntegrationTest.aFailureInTheBalanceStepRollsBackTheEmployee` | Sude | #119 |
 | ⬜ | T5 | Süresi dolan iptal taleplerini sonuçsuz yapma | `ExpireCancellationRequests` | Her talep kendi transaction'ında; biri hata verirse diğerleri etkilenmez | | Onur | |
 
 ---

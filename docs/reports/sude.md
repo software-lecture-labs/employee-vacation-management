@@ -116,3 +116,30 @@ Departman yönetiminde yetki controller'da, ad tekilliği Handler'da, biçim kur
 **Açık kalanlar:**
 - Swagger açıklamaları.
 
+## 27 Kasım 2026 — feat(employee): çalışan eklemeyi ve ilk bakiyeleri ekle (#119)
+**İlgili gereksinimler:** FR-06, T4 (FR-33 ve BR-03 Zehra'nın servisiyle)
+**Use case(ler):** `CreateEmployee`
+**Ne yaptım:**
+- `POST /api/employees` (yalnızca İK): 201, `Location` başlığı; cevapta çalışan ve açılan bakiyeler, şifre yok.
+- `CreateEmployeeHandler` tek `@Transactional` metotta çalışanı kaydediyor ve `LeaveBalanceService.openYearBalances(çalışan, buYıl, ik)` ile bu yılın bakiyelerini açıyor (Zehra'nın notuna uygun: bakiyeler elle açılmıyor).
+- İlk şifre BCrypt ile saklanıyor; `CreateEmployeeRequest.toString` şifreyi göstermiyor (loglara düşmesin).
+- Tarih kuralları `EmployeeDateRules`'ta; güncelleme de aynısını kullanacak.
+**Validator'a koyduğum kurallar:**
+- İşe giriş gelecekte olamaz; doğum en az 15 yıl önce; işe giriş doğumdan sonra.
+- Anotasyonlar: ad/soyad zorunlu ve en fazla 50, e-posta geçerli, şifre 8–72, rol ve departman zorunlu, yönetici id'si pozitif.
+**Handler'daki kurallar ve transaction:**
+- E-posta harf duyarsız tekil (409 `DUPLICATE_VALUE`), departman yoksa 404 `DEPARTMENT_NOT_FOUND`, yönetici yoksa 404 `EMPLOYEE_NOT_FOUND`.
+- T4: çalışan ve bakiyeler aynı transaction'da; bakiye adımı hata verirse çalışan da oluşmuyor. İşlemi yapan İK bakiye hareketlerinde "kim" olarak yazılıyor.
+**Neden böyle yaptım (tasarım kararları):**
+- Hak hesabı tek yerde (Zehra'nın `LeaveBalanceService`'i): yıllık izin kıdem ve yaşa göre, mazeret 5 gün, hastalık ve ücretsiz izne bakiye yok; bu yıl giren birinin yıllık izni 0 (satır var, hareket yok). T3 de aynı metodu kullandığı için iki yol aynı sonucu veriyor.
+- Rollback testi, Zehra'nın T3 testindeki yöntemle (hak hesabında yapay hata) yazıldı.
+**Testler:**
+- `CreateEmployeeIntegrationTest` — şifre hash'i, yıllık 14 + mazeret 5, bu yıl girene 0 ve tek hareket, yönetici, harf duyarsız e-posta çakışması, olmayan departman/yönetici, alan hataları, tarih kuralları, **T4 rollback**
+- `EmployeeControllerIntegrationTest` — İK 201 ve bakiyeler, yeni çalışan giriş yapabiliyor, yönetici 403, e-posta 409
+**Karşılaştığım sorun ve çözümü:**
+- Bu PR #118'in üzerine kuruldu (aynı controller, aynı doküman satırları).
+**Sunumda anlatacağım tek cümle:**
+İK çalışanı eklediğinde ilk bakiyeleri aynı transaction'da açılıyor; bakiye adımında hata olursa çalışan da kaydedilmiyor (T4).
+**Açık kalanlar:**
+- Swagger açıklamaları.
+
