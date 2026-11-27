@@ -143,3 +143,30 @@ Departman yönetiminde yetki controller'da, ad tekilliği Handler'da, biçim kur
 **Açık kalanlar:**
 - Swagger açıklamaları.
 
+## 27 Kasım 2026 — feat(employee): çalışan güncelleme ve pasife almayı ekle (#120)
+**İlgili gereksinimler:** FR-07, FR-08, BR-13
+**Use case(ler):** `UpdateEmployee`, `DeactivateEmployee`
+**Ne yaptım:**
+- `PUT /api/employees/{id}` ve `POST /api/employees/{id}/deactivate` (yalnızca İK).
+- `HrMinimumRule`: BR-13 tek yerde; iki Handler da kullanıyor.
+- `ErrorCode.MANAGER_CYCLE` (422): çalışan kendi ekibindeki birine bağlanamaz.
+- `EmployeeRepository.countByRoleAndActiveTrue`.
+**Validator'a koyduğum kurallar:**
+- Ekleme ile aynı tarih kuralları (`EmployeeDateRules`); çalışan kendi yöneticisi olamaz.
+**Handler'daki kurallar ve transaction:**
+- Güncelleme: çalışan var mı (404), e-posta başka çalışanda mı (409), departman/yönetici var mı (404), yönetici döngüsü (422), son iki aktif İK'dan birinin rolü İK dışına çıkıyor mu (BR-13, 422).
+- Pasife alma: son iki aktif İK'dan biri pasife alınamaz (BR-13, 422); zaten pasif çalışan için işlem hata vermeden aynı cevabı döner.
+**Neden böyle yaptım (tasarım kararları):**
+- Şifre ve aktiflik güncellemede değişmiyor: şifreyi çalışan kendisi değiştirir (FR-05), aktiflik ayrı ve kayıtlı bir işlem (pasife alma).
+- Yönetici döngüsü yeni yöneticiden yukarı doğru zincir izlenerek bulunuyor; zincir her zaman döngüsüz kaldığı için izleme sonlanıyor.
+- İşe giriş tarihi değişse bile açılmış bakiyeler değiştirilmiyor; yeni hak bir sonraki T3'te hesaplanıyor.
+**Testler:**
+- `EmployeeChangesIntegrationTest` — bilgileri güncelleme (şifre değişmiyor), aynı e-postayı koruma, başka çalışanın e-postası 409, kendi yöneticisi olamama, döngü 422, BR-13 (2 İK'da 422, 3 İK'da izin), pasife alma, iki kez pasife alma, 404
+- `EmployeeControllerIntegrationTest` — İK günceller 200, yönetici 403, pasife alınan çalışan giriş yapamaz (401), son İK pasife alınamaz 422
+**Karşılaştığım sorun ve çözümü:**
+- Bu PR #119'un üzerine kuruldu (aynı controller ve doküman satırları).
+**Sunumda anlatacağım tek cümle:**
+Son iki İK'dan biri pasife alınmak ya da rolü değiştirilmek istenirse sistem 422 ile durduruyor; bu kural tek bir sınıfta ve iki işlem de onu kullanıyor.
+**Açık kalanlar:**
+- Swagger açıklamaları.
+
