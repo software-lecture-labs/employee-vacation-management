@@ -90,3 +90,29 @@ Departman yönetiminde yetki controller'da, ad tekilliği Handler'da, biçim kur
 **Açık kalanlar:**
 - Swagger açıklamaları ve örnekleri.
 
+## 27 Kasım 2026 — feat(employee): çalışan listesi ve detayını ekle (#118)
+**İlgili gereksinimler:** FR-09, NFR-07
+**Use case(ler):** `ListEmployees`, `GetEmployee`
+**Ne yaptım:**
+- `GET /api/employees?departmentId&active&page&size` ve `GET /api/employees/{id}`; ikisi de yalnızca İK (`EmployeeController` sınıf seviyesinde `@PreAuthorize("hasRole('HR')")`).
+- Cevaplarda Onur'un profil için yazdığı ortak `EmployeeView` kullanıldı (departman adı ve yönetici dahil, şifre hash'i yok).
+- `EmployeeSpecifications.matching(departmentId, active)`: boş filtreler sorguya girmiyor.
+- `EmployeeRepository.findAll(Specification, Pageable)` üzerinde `@EntityGraph(department, manager)`.
+**Validator'a koyduğum kurallar:**
+- Alanlar arası kural yok; `departmentId` pozitif, `page ≥ 0`, `size` 1–100 (istek anotasyonları).
+**Handler'daki kurallar ve transaction:**
+- Salt okunur transaction; sıralama soyad, ad, id. Olmayan çalışan 404 `EMPLOYEE_NOT_FOUND`; pasif çalışan da görüntülenebilir.
+**Neden böyle yaptım (tasarım kararları):**
+- Filtreler Zehra'nın geçmiş aramasıyla aynı yöntemle (Criteria API) yazıldı: `:p is null or ...` biçimli JPQL PostgreSQL'de boş parametre tipi hatası verebiliyor.
+- Listede her satırda departman ve yönetici adı göründüğü için ikisi ana sorguya katıldı; aksi halde 20 satırlık sayfada 40'a yakın ek sorgu atılırdı (N+1).
+- Yetki sınıf seviyesinde: çalışan yönetimi uç noktalarının hepsi İK'ya ait, yeni eklenecek metotlar da kendiliğinden korunuyor.
+**Testler:**
+- `EmployeeQueriesIntegrationTest` — sıralama, departman ve aktiflik filtreleri, ikisi birlikte, ikinci sayfa, yönetici adı, geçersiz filtre/sayfa, detay ve 404
+- `EmployeeControllerIntegrationTest` — uçtan uca: İK 200, yönetici 403, token yok 401, geçersiz sayfa 400, olmayan çalışan 404, şifre hash'i cevapta yok
+**Karşılaştığım sorun ve çözümü:**
+- Bu PR #117'nin (departman) üzerine kuruldu: ikisi de REQUIREMENTS.md özetini ve raporu değiştiriyor, ayrı ayrı açılsalar çakışırdı (CONTRIBUTING 5, bağlı PR'lar).
+**Sunumda anlatacağım tek cümle:**
+İK çalışanları departmana ve aktifliğe göre süzebiliyor; liste tek sorguyla geliyor ve şifre bilgisi hiçbir cevapta yer almıyor.
+**Açık kalanlar:**
+- Swagger açıklamaları.
+

@@ -6,7 +6,7 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 - ⬜ henüz karşılanmadı · ✅ karşılandı (kod `dev`'e birleşti, testi var, Swagger'da çalışıyor)
 - Bir satır yalnızca onu karşılayan PR birleştiğinde, o PR'ın son commit'inde ✅ yapılır ve PR numarası yazılır.
 
-**Özet:** Zorunlu FR 10 / 34 · Bonus FR 0 / 4 · İş kuralı 3 / 18 · Kalite gereksinimi 0 / 11
+**Özet:** Zorunlu FR 11 / 34 · Bonus FR 0 / 4 · İş kuralı 3 / 18 · Kalite gereksinimi 0 / 11
 
 ---
 
@@ -29,7 +29,7 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 | ⬜ | FR-06 | Çalışan ekleme ve ilk bakiyeler (T4) | `POST /api/employees` | `CreateEmployee` | Sude | |
 | ⬜ | FR-07 | Çalışan güncelleme | `PUT /api/employees/{id}` | `UpdateEmployee` | Sude | |
 | ⬜ | FR-08 | Çalışanı pasife alma | `POST /api/employees/{id}/deactivate` | `DeactivateEmployee` | Sude | |
-| ⬜ | FR-09 | Çalışan listesi (sayfalı, filtreli) ve detayı | `GET /api/employees`, `GET /api/employees/{id}` | `ListEmployees`, `GetEmployee` | Sude | |
+| ✅ | FR-09 | Çalışan listesi (sayfalı, filtreli) ve detayı | `GET /api/employees`, `GET /api/employees/{id}` | `ListEmployees`, `GetEmployee` | Sude | #118 |
 | ✅ | FR-10 | Departman ekleme, güncelleme, listeleme | `GET`, `POST /api/departments`, `PUT /api/departments/{id}` | `ListDepartments`, `CreateDepartment`, `UpdateDepartment` | Sude || #101, #117 |
 
 ### 1.3 İzin türleri ve bakiye
