@@ -1,10 +1,15 @@
 package com.dogus.vacation.api;
 
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.time.Clock;
+import java.time.LocalDate;
 
 import com.dogus.vacation.AbstractIntegrationTest;
 import com.dogus.vacation.domain.model.Department;
@@ -44,6 +49,9 @@ class EmployeeControllerIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private Clock clock;
 
     private MockMvc mockMvc;
     private Department department;
@@ -108,6 +116,58 @@ class EmployeeControllerIntegrationTest extends AbstractIntegrationTest {
         mockMvc.perform(get("/api/employees/999999").header(HttpHeaders.AUTHORIZATION, bearer(hr)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("EMPLOYEE_NOT_FOUND"));
+    }
+
+    // ---- POST /api/employees ----
+
+    private String newEmployeeJson(String email) {
+        LocalDate today = LocalDate.now(clock);
+        return """
+                {"firstName":"Deniz","lastName":"Yıldız","email":"%s","password":"IlkSifre1!",
+                 "hireDate":"%s","birthDate":"%s","role":"EMPLOYEE","departmentId":%d,"managerId":%d}
+                """.formatted(email, today.minusYears(3), today.minusYears(30), department.getId(), manager.getId());
+    }
+
+    @Test
+    void hrCreatesAnEmployeeWithInitialBalances() throws Exception {
+        mockMvc.perform(post("/api/employees").header(HttpHeaders.AUTHORIZATION, bearer(hr))
+                        .contentType(MediaType.APPLICATION_JSON).content(newEmployeeJson("deniz@test.local")))
+                .andExpect(status().isCreated())
+                .andExpect(header().string(HttpHeaders.LOCATION, startsWith("/api/employees/")))
+                .andExpect(jsonPath("$.employee.email").value("deniz@test.local"))
+                .andExpect(jsonPath("$.employee.manager.id").value(manager.getId()))
+                .andExpect(jsonPath("$.employee.password").doesNotExist())
+                .andExpect(jsonPath("$.balances.length()").value(2))
+                .andExpect(jsonPath("$.balances[0].leaveType.code").value("ANNUAL"))
+                .andExpect(jsonPath("$.balances[0].entitledDays").value(14))
+                .andExpect(jsonPath("$.balances[1].leaveType.code").value("EXCUSE"));
+    }
+
+    @Test
+    void theNewEmployeeCanLogIn() throws Exception {
+        mockMvc.perform(post("/api/employees").header(HttpHeaders.AUTHORIZATION, bearer(hr))
+                        .contentType(MediaType.APPLICATION_JSON).content(newEmployeeJson("giris@test.local")))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"giris@test.local\",\"password\":\"IlkSifre1!\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty());
+    }
+
+    @Test
+    void aManagerCannotCreateAnEmployee() throws Exception {
+        mockMvc.perform(post("/api/employees").header(HttpHeaders.AUTHORIZATION, bearer(manager))
+                        .contentType(MediaType.APPLICATION_JSON).content(newEmployeeJson("x@test.local")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void aDuplicateEmailIs409() throws Exception {
+        mockMvc.perform(post("/api/employees").header(HttpHeaders.AUTHORIZATION, bearer(hr))
+                        .contentType(MediaType.APPLICATION_JSON).content(newEmployeeJson(hr.getEmail())))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DUPLICATE_VALUE"));
     }
 
     private Employee saveWithPassword(Employee newEmployee) {
