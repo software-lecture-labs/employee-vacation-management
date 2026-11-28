@@ -2,6 +2,7 @@ package com.dogus.vacation.api;
 
 import java.net.URI;
 
+import com.dogus.vacation.api.docs.DepartmentApi;
 import com.dogus.vacation.application.mediator.Mediator;
 import com.dogus.vacation.application.usecase.department.create.CreateDepartmentRequest;
 import com.dogus.vacation.application.usecase.department.create.CreateDepartmentResponse;
@@ -28,10 +29,12 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p><b>Yetki:</b> Listeleme giriş yapmış herkese, ekleme ve güncelleme yalnızca İK'ya açıktır
  * ({@code @PreAuthorize("hasRole('HR')")}); başka rol 403 alır.
+ *
+ * <p>Swagger açıklamaları ve örnekleri {@link DepartmentApi}'dedir.
  */
 @RestController
 @RequestMapping("/api/departments")
-public class DepartmentController {
+public class DepartmentController implements DepartmentApi {
 
     private final Mediator mediator;
 
@@ -43,6 +46,7 @@ public class DepartmentController {
      * Ada göre sıralı, sayfalı departman listesi (giriş yapmış herkes).
      * Örnek: {@code /api/departments?page=0&size=20}
      */
+    @Override
     @GetMapping
     public ListDepartmentsResponse list(
             @RequestParam(required = false) Integer page,
@@ -51,6 +55,7 @@ public class DepartmentController {
     }
 
     /** Yeni departman (İK). 201 ve yeni kaydın adresi {@code Location} başlığında döner. */
+    @Override
     @PostMapping
     @PreAuthorize("hasRole('HR')")
     public ResponseEntity<CreateDepartmentResponse> create(@RequestBody CreateDepartmentRequest request) {
@@ -60,6 +65,7 @@ public class DepartmentController {
     }
 
     /** Departmanın adı (İK). Hangi departmanın güncelleneceği yoldaki id'den alınır. */
+    @Override
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('HR')")
     public UpdateDepartmentResponse update(@PathVariable Long id, @RequestBody UpdateDepartmentRequest request) {

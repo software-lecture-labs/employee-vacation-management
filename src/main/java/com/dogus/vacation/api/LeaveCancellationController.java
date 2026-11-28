@@ -1,5 +1,6 @@
 package com.dogus.vacation.api;
 
+import com.dogus.vacation.api.docs.LeaveCancellationApi;
 import com.dogus.vacation.application.mediator.Mediator;
 import com.dogus.vacation.application.usecase.cancellation.approve.ApproveLeaveCancellationRequest;
 import com.dogus.vacation.application.usecase.cancellation.approve.ApproveLeaveCancellationResponse;
@@ -27,10 +28,12 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p><b>Yetki:</b> rol kontrolü burada ({@code @PreAuthorize}); "bu talebe bu kişi mi karar verir"
  * ve "talep bu kişinin mi" kontrolleri Handler'dadır. Controller iş kuralı içermez.
+ *
+ * <p>Swagger açıklamaları ve örnekleri {@link LeaveCancellationApi}'dedir.
  */
 @RestController
 @RequestMapping("/api/leave-requests/{id}")
-public class LeaveCancellationController {
+public class LeaveCancellationController implements LeaveCancellationApi {
 
     private final Mediator mediator;
 
@@ -39,6 +42,7 @@ public class LeaveCancellationController {
     }
 
     /** Onaylı izni şirket adına iptal eder; gerekçe zorunlu. Günler aynı transaction'da iade edilir. */
+    @Override
     @PostMapping("/cancel")
     @PreAuthorize("hasAnyRole('MANAGER', 'HR')")
     public CancelLeaveResponse cancel(@PathVariable Long id, @RequestBody CancelLeaveRequest request) {
@@ -46,6 +50,7 @@ public class LeaveCancellationController {
     }
 
     /** Talep sahibi onaylı izni için iptal talebi açar; gerekçe zorunlu. */
+    @Override
     @PostMapping("/cancel-request")
     public RequestLeaveCancellationResponse requestCancellation(
             @PathVariable Long id, @RequestBody RequestLeaveCancellationRequest request) {
@@ -53,6 +58,7 @@ public class LeaveCancellationController {
     }
 
     /** Onaylayıcı iptal talebini kabul eder; izin iptal olur, günler iade edilir. */
+    @Override
     @PostMapping("/cancel-request/approve")
     @PreAuthorize("hasAnyRole('MANAGER', 'HR')")
     public ApproveLeaveCancellationResponse approveCancellation(@PathVariable Long id) {
@@ -60,6 +66,7 @@ public class LeaveCancellationController {
     }
 
     /** Onaylayıcı iptal talebini reddeder; izin onaylı kalır. Açıklama isteğe bağlı. */
+    @Override
     @PostMapping("/cancel-request/reject")
     @PreAuthorize("hasAnyRole('MANAGER', 'HR')")
     public RejectLeaveCancellationResponse rejectCancellation(
@@ -69,6 +76,7 @@ public class LeaveCancellationController {
     }
 
     /** Talep sahibi iptal talebinden vazgeçer; izin onaylı kalır. */
+    @Override
     @PostMapping("/cancel-request/withdraw")
     public WithdrawLeaveCancellationResponse withdrawCancellation(@PathVariable Long id) {
         return mediator.send(new WithdrawLeaveCancellationRequest(id));
