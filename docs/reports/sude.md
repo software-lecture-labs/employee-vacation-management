@@ -245,3 +245,21 @@ Onaylı bir izin iptal edildiğinde durum, geçmiş ve gün iadesi tek transacti
 Swagger'daki her örnek testle koda bağlı; bir cevaba alan eklenip örnek unutulursa build kırılıyor.
 **Açık kalanlar:**
 - Onay akışı uç noktaları gelince (Bilge) demo 8'in Swagger'dan uçtan uca denenmesi.
+
+## 28 Kasım 2026 — docs(test-plan): test planını ekle
+**İlgili gereksinimler:** NFR-03, NFR-06 (kanıt); bütün BR'ler, rol senaryoları ve demo adımları (kapsama matrisi)
+**Use case(ler):** yok (yalnızca doküman)
+**Ne yaptım:**
+- `docs/TEST_PLAN.md`: test türleri, çalıştırma komutları, test yazma kuralları, senaryo kapsama matrisi (18 iş kuralı, 9 rol senaryosu, 8 demo adımı, 10 kalite gereksinimi), T1–T5 rollback testleri ve rollback senaryoları A–D, demo öncesi elle kontrol listesi.
+- README "Testleri Çalıştırma" bölümü: komutlar, test türleri ve TEST_PLAN bağlantısı.
+**Neden böyle yaptım (tasarım kararları):**
+- Matristeki her test adı depodaki gerçek bir test metodu; plandaki iskelet bu adlarla dolduruldu. Testi henüz olmayan satırlar ⬜, kısmen test edilenler 🟡 ve eksik kısmı "Bekleyen" sütununda; böylece doküman aynı zamanda ekibin kalan test listesi oldu.
+- `MANDATORY` servislerin spy yapılamaması notu eklendi (T2 testinde karşılaştığım sorun); Bilge'nin senaryo B testinde aynı hataya düşmemesi için alt katmanı spy yapma yolu önerildi.
+**Testler:**
+- Gerekmez (doküman). Matristeki sınıf ve metot adları kaynak koddaki adlarla karşılaştırılarak kontrol edildi.
+**Karşılaştığım sorun ve çözümü:**
+- Talep ve onay akışı henüz `dev`'de olmadığı için demo 2–7'nin çoğu 🟡/⬜; Bilge'nin PR'ları birleştikçe satırlar güncellenecek.
+**Sunumda anlatacağım tek cümle:**
+Analizdeki her kuralın ve her demo adımının karşısında onu kanıtlayan testin adı yazıyor; rollback'leri varsaymıyor, veritabanındaki satırları sayarak ölçüyoruz.
+**Açık kalanlar:**
+- Bekleyen satırların Bilge, Onur ve Zehra'nın PR'larıyla ✅ yapılması; son Sonar taramasından sonra kapsam ve not satırlarının güncellenmesi.
