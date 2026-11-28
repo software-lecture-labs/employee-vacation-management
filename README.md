@@ -119,7 +119,25 @@ _Beş transactional işlem (T1–T5) ve rollback testleri._
 
 ## Testleri Çalıştırma
 
-_Komutlar ve test türleri. Ayrıntı: `docs/TEST_PLAN.md`._
+Ön koşul: Java 21 ve çalışan Docker Desktop. `.env` gerekmez; testler Supabase'e değil,
+Testcontainers ile açılan geçici bir PostgreSQL 17'ye (aynı `db/scripts`) bağlanır.
+
+```bash
+./mvnw verify                                   # bütün testler + kapsam raporu
+./mvnw test -Dtest=LeaveCancellationIntegrationTest   # tek sınıf
+```
+
+Kapsam raporu: `target/site/jacoco/index.html`. GitHub Actions her PR'da aynı komutu çalıştırır.
+
+| Tür | Örnek |
+|---|---|
+| Birim (domain, politika, validator) | `LeaveRequestTest`, `ApproverResolverTest`, `SubmitLeaveValidatorTest` |
+| Entegrasyon ve rollback (Testcontainers) | `CreateEmployeeIntegrationTest`, `LeaveCancellationIntegrationTest` |
+| Uçtan uca API (JWT, 401/403) | `EmployeeControllerIntegrationTest`, `AuthenticationAndAuthorizationIntegrationTest` |
+| Mimari ve doküman | `UseCaseStructureTest`, `OpenApiDocumentationTest` |
+
+Her iş kuralının, rol senaryosunun ve demo adımının hangi testle doğrulandığı:
+[`docs/TEST_PLAN.md`](docs/TEST_PLAN.md).
 
 ## SOLID Uygulaması
 
