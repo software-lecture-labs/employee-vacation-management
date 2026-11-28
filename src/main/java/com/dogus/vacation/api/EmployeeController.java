@@ -2,6 +2,7 @@ package com.dogus.vacation.api;
 
 import java.net.URI;
 
+import com.dogus.vacation.api.docs.EmployeeApi;
 import com.dogus.vacation.application.mediator.Mediator;
 import com.dogus.vacation.application.usecase.employee.create.CreateEmployeeRequest;
 import com.dogus.vacation.application.usecase.employee.create.CreateEmployeeResponse;
@@ -29,11 +30,13 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>Controller iş kuralı içermez: isteği Request record'una çevirir ve {@link Mediator}'a verir.
  * Bir çalışanın bakiyeleri ({@code /api/employees/{id}/leave-balances}) bakiye modülündedir.
+ *
+ * <p>Swagger açıklamaları ve örnekleri {@link EmployeeApi}'dedir.
  */
 @RestController
 @RequestMapping("/api/employees")
 @PreAuthorize("hasRole('HR')")
-public class EmployeeController {
+public class EmployeeController implements EmployeeApi {
 
     private final Mediator mediator;
 
@@ -45,6 +48,7 @@ public class EmployeeController {
      * Sayfalı ve filtreli çalışan listesi.
      * Örnek: {@code /api/employees?departmentId=2&active=true&page=0&size=20}
      */
+    @Override
     @GetMapping
     public ListEmployeesResponse list(
             @RequestParam(required = false) Long departmentId,
@@ -58,6 +62,7 @@ public class EmployeeController {
      * Yeni çalışan ve bu yılın ilk bakiyeleri (T4). 201 ve yeni kaydın adresi {@code Location}
      * başlığında döner; şifre cevapta yer almaz.
      */
+    @Override
     @PostMapping
     public ResponseEntity<CreateEmployeeResponse> create(@RequestBody CreateEmployeeRequest request) {
         CreateEmployeeResponse response = mediator.send(request);
@@ -66,18 +71,21 @@ public class EmployeeController {
     }
 
     /** Bir çalışanın detayı; pasif çalışan da görüntülenir. */
+    @Override
     @GetMapping("/{id}")
     public GetEmployeeResponse get(@PathVariable Long id) {
         return mediator.send(new GetEmployeeRequest(id));
     }
 
     /** Çalışanın bilgileri; şifre ve aktiflik burada değişmez. Yoldaki id geçerlidir. */
+    @Override
     @PutMapping("/{id}")
     public UpdateEmployeeResponse update(@PathVariable Long id, @RequestBody UpdateEmployeeRequest request) {
         return mediator.send(request.withId(id));
     }
 
     /** Çalışanı pasife alır; pasif çalışan giriş yapamaz. Son iki aktif İK pasife alınamaz (BR-13). */
+    @Override
     @PostMapping("/{id}/deactivate")
     public DeactivateEmployeeResponse deactivate(@PathVariable Long id) {
         return mediator.send(new DeactivateEmployeeRequest(id));
