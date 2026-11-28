@@ -224,3 +224,24 @@ Onaylı bir izin iptal edildiğinde durum, geçmiş ve gün iadesi tek transacti
 **Açık kalanlar:**
 - Onay bekleyenler listesinde iptal taleplerinin görünmesi (FR-20, Bilge) ve acil bayrağı (FR-30, Onur); Swagger açıklamaları.
 
+
+## 28 Kasım 2026 — docs(swagger): departman, çalışan ve iptal için Swagger örneklerini ekle
+**İlgili gereksinimler:** FR-06 – FR-10, FR-23, FR-25, FR-28, FR-29 (uç noktaların Swagger açıklamaları), NFR-07
+**Use case(ler):** yok (yalnızca doküman; davranış değişmedi)
+**Ne yaptım:**
+- `DepartmentApi`, `EmployeeApi`, `LeaveCancellationApi` arayüzleri: 13 uç noktanın özeti, açıklaması, parametre açıklamaları ve her cevap kodu için örnek (başarı, 400, 401, 403, 404, 409, 422).
+- Örnekler `OrganizationExamples` ve `CancellationExamples` sınıflarında; demo verisindeki kişilerle (Ayşe Demir, Yazılım Geliştirme vb.) yazıldı.
+- Üç controller bu arayüzleri uyguluyor; controller'larda yalnızca `implements` ve `@Override` değişti.
+**Neden böyle yaptım (tasarım kararları):**
+- Zehra'nın `LeaveTypeApi` kalıbı izlendi: Swagger açıklamaları arayüzde, Request ve Response record'ları Swagger'a bağımlı değil; controller okunur kalıyor.
+- Hata örneklerindeki `code` değerleri uygulamanın gerçekten döndürdüğü kodlar (örn. `MINIMUM_ACTIVE_HR_REQUIRED` 422, `SELF_APPROVAL_NOT_ALLOWED` 403).
+- Red gövdesi Swagger'da da isteğe bağlı (`required = false`), çünkü uç nokta gövdesiz isteği kabul ediyor.
+- Yoldan gelen id gövde örneklerinde yok; gövdedeki id yok sayılıyor.
+**Testler:**
+- `OpenApiDocumentationTest` — 13 uç nokta listeye eklendi: özet, etiket, parametre açıklaması ve örneği; başarı örneğinin alanları Response record'uyla birebir; her 4xx örneği `ErrorResponse` alanlarında ve `status` cevap koduyla aynı; iç içe görünümler (`DepartmentView`, `EmployeeView`, `EmployeeRef`, `BalanceView`, `LeaveRequestDetailView`, `PageResponse`); gövde örnekleri Request alanlarıyla aynı; red gövdesinin isteğe bağlı olduğu
+**Karşılaştığım sorun ve çözümü:**
+- Örnekler elle yazılınca bir Response'a alan eklendiğinde kolayca eskiyebilir; test her örneği record alanlarıyla karşılaştırdığı için örnek güncellenmezse build kırılıyor.
+**Sunumda anlatacağım tek cümle:**
+Swagger'daki her örnek testle koda bağlı; bir cevaba alan eklenip örnek unutulursa build kırılıyor.
+**Açık kalanlar:**
+- Onay akışı uç noktaları gelince (Bilge) demo 8'in Swagger'dan uçtan uca denenmesi.
