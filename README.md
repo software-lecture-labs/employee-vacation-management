@@ -113,7 +113,9 @@ _Beş transactional işlem (T1–T5) ve rollback testleri._
 
 | # | İşlem | Bir adım hata verirse | Rollback testi |
 |---|---|---|---|
+| T2 | Onaylı iznin iptali (şirket adına iptal veya iptal talebinin kabulü): durum, geçmiş satırı, gün iadesi | İzin APPROVED (veya CANCEL_REQUESTED) kalır, geçmiş satırı ve iade hareketi oluşmaz, gün iade edilmez | `LeaveCancellationIntegrationTest` |
 | T3 | Yıllık hak ediş: bütün aktif çalışanlara hak yazılır, çalıştırma kaydedilir | Hiçbir çalışana hak yazılmaz, çalıştırma kaydı oluşmaz; yıl yeniden çalıştırılabilir | `RunAnnualAccrualIntegrationTest` |
+| T4 | Çalışan ekleme: çalışan, ilk şifre ve bu yılın bakiyeleri | Çalışan da oluşmaz; e-posta yeniden kullanılabilir | `CreateEmployeeIntegrationTest` |
 
 ## Testleri Çalıştırma
 

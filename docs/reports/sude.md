@@ -195,3 +195,32 @@ Uygulama demo profilinde açılınca on kişilik bir şirket hazır geliyor; her
 **Açık kalanlar:**
 - Demo şifresinin ekibe özel mesajla iletilmesi.
 
+## 28 Kasım 2026 — feat(leave-cancellation): iptal akışını ekle (#122)
+**İlgili gereksinimler:** FR-23, FR-25, FR-28, FR-29, BR-08, BR-15, BR-17, T2 (BR-09'un iptal kısmı)
+**Use case(ler):** `CancelLeave`, `RequestLeaveCancellation`, `ApproveLeaveCancellation`, `RejectLeaveCancellation`, `WithdrawLeaveCancellation`
+**Ne yaptım:**
+- `LeaveCancellationController` (`/api/leave-requests/{id}/...`): `cancel` (yönetici/İK), `cancel-request`, `cancel-request/approve` ve `/reject` (yönetici/İK), `cancel-request/withdraw`.
+- Beş use case, her biri dört dosya; ortak `LeaveRequestFinder` (talep yoksa 404).
+- Durum geçişleri Bilge'nin `LeaveRequest` metotlarıyla, geçmiş Zehra'nın `LeaveHistoryService.record`'uyla, iade Zehra'nın `LeaveBalanceService.refund`'uyla.
+- README "Transaction Senaryoları" tablosuna T2 ve T4 satırları.
+**Validator'a koyduğum kurallar:**
+- İptal ve iptal talebinde gerekçe zorunlu, en fazla 500 karakter (BR-09); red açıklaması isteğe bağlı.
+**Handler'daki kurallar ve transaction:**
+- Kim iptal eder / kim karar verir (BR-15, BR-17): Bilge'nin `ApproverResolver`'ı (yönetici; yöneticisi yoksa İK; İK'nın iznini başka İK). Kendi talebinde karar verilemez (403 `SELF_APPROVAL_NOT_ALLOWED`).
+- İptal talebini yalnızca talep sahibi açar ve geri çeker (403 `ACTION_NOT_ALLOWED`).
+- Başlamış izin iptal edilemez, iptal talebi açılamaz ve kabul edilemez (BR-08, 409 `INVALID_STATUS_TRANSITION`).
+- **T2:** şirket adına iptal ve iptal talebinin kabulünde durum, geçmiş ve gün iadesi tek transaction'da; iade hata verirse izin önceki durumunda kalır, geçmiş ve iade hareketi oluşmaz.
+**Neden böyle yaptım (tasarım kararları):**
+- Planda `CancellationAuthorizationPolicy` olarak geçen kural ayrı sınıf yapılmadı: Bilge'nin `ApproverResolver`'ı aynı kuralı uyguluyor ve iptal için de kullanılacağını belirtiyor; iki kopya ileride birbirinden ayrılabilirdi. REQUIREMENTS'taki sınıf adı düzeltildi.
+- Uç noktalar Bilge'nin talep controller'ından ayrı bir controller'da: aynı dosyada çalışıp çakışma yaşamamak için; adresler planla aynı.
+- Günler yalnızca iptal gerçekleşince iade ediliyor (doğrudan iptal ya da kabul); iptal talebi açmak ve reddetmek bakiyeye dokunmuyor (BR-17).
+**Testler:**
+- `LeaveCancellationIntegrationTest` — yönetici iptali ve iade, İK'nın yöneticili çalışanı iptal edememesi, yöneticisiz çalışan, İK'nın kendi izni, başlamış izin, bekleyen talep, gerekçe, 404; iptal talebi (sahibi, başkası, başlamış izin); kabul ve iade, kendi talebini kabul edememe, red, vazgeçme; **iki T2 rollback testi**
+- `LeaveCancellationControllerIntegrationTest` — uçtan uca demo 8 akışı (talep → kabul), doğrudan iptal, çalışan 403, gerekçesiz 400, gövdesiz red, iptal talebi yokken vazgeçme 409, token yok 401
+**Karşılaştığım sorun ve çözümü:**
+- Onay akışı (FR-21, Bilge) henüz dev'de olmadığı için testlerde onaylı izin, alan modelinin `approve` metodu ve bakiyeden düşülmüş bir satırla hazırlandı.
+**Sunumda anlatacağım tek cümle:**
+Onaylı bir izin iptal edildiğinde durum, geçmiş ve gün iadesi tek transaction'da; iade adımı hata verirse izin onaylı kalıyor ve hiçbir gün kaybolmuyor (T2).
+**Açık kalanlar:**
+- Onay bekleyenler listesinde iptal taleplerinin görünmesi (FR-20, Bilge) ve acil bayrağı (FR-30, Onur); Swagger açıklamaları.
+

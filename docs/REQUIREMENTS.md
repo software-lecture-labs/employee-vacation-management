@@ -6,7 +6,7 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 - ⬜ henüz karşılanmadı · ✅ karşılandı (kod `dev`'e birleşti, testi var, Swagger'da çalışıyor)
 - Bir satır yalnızca onu karşılayan PR birleştiğinde, o PR'ın son commit'inde ✅ yapılır ve PR numarası yazılır.
 
-**Özet:** Zorunlu FR 14 / 34 · Bonus FR 0 / 4 · İş kuralı 4 / 18 · Kalite gereksinimi 0 / 11
+**Özet:** Zorunlu FR 18 / 34 · Bonus FR 0 / 4 · İş kuralı 7 / 18 · Kalite gereksinimi 0 / 11
 
 ---
 
@@ -62,10 +62,10 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 
 | Durum | Kod | Gereksinim | Endpoint / bileşen | Use case | Sorumlu | PR |
 |---|---|---|---|---|---|---|
-| ⬜ | FR-23 | Şirket adına iptal (T2) | `POST /api/leave-requests/{id}/cancel` | `CancelLeave` | Sude | |
-| ⬜ | FR-25 | İptal talebi açma | `POST /api/leave-requests/{id}/cancel-request` | `RequestLeaveCancellation` | Sude | |
-| ⬜ | FR-28 | İptal talebini kabul ve red (T2) | `POST .../cancel-request/approve`, `POST .../cancel-request/reject` | `ApproveLeaveCancellation`, `RejectLeaveCancellation` | Sude | |
-| ⬜ | FR-29 | İptal talebinden vazgeçme | `POST .../cancel-request/withdraw` | `WithdrawLeaveCancellation` | Sude | |
+| ✅ | FR-23 | Şirket adına iptal (T2) | `POST /api/leave-requests/{id}/cancel` | `CancelLeave` | Sude || #122 |
+| ✅ | FR-25 | İptal talebi açma | `POST /api/leave-requests/{id}/cancel-request` | `RequestLeaveCancellation` | Sude || #122 |
+| ✅ | FR-28 | İptal talebini kabul ve red (T2) | `POST .../cancel-request/approve`, `POST .../cancel-request/reject` | `ApproveLeaveCancellation`, `RejectLeaveCancellation` | Sude || #122 |
+| ✅ | FR-29 | İptal talebinden vazgeçme | `POST .../cancel-request/withdraw` | `WithdrawLeaveCancellation` | Sude || #122 |
 | ⬜ | FR-30 | Yaklaşan iptal talebi uyarısı | `GET /api/leave-requests/pending` içinde acil bayrağı | `CancellationUrgencyPolicy` | Onur | |
 | ⬜ | FR-31 | Gece zamanlanmış görev: süresi dolan iptal talebi sonuçsuz olur (T5) | Zamanlayıcı, her gece 00:05 | `ExpireCancellationRequests` | Onur | |
 
@@ -98,16 +98,16 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 | ⬜ | BR-05 | Bakiye negatife düşmez; talepte ve onayda iki kez kontrol edilir | `SubmitLeaveHandler`, `LeaveBalanceService.deduct` | Bilge, Zehra | |
 | ⬜ | BR-06 | Geçmiş tarihe talep yok, bitiş başlangıçtan önce olamaz, en fazla 30 iş günü | `SubmitLeaveValidator` | Bilge | |
 | ⬜ | BR-07 | Onaylayıcı sırası: İK'nın talebini başka bir İK, diğerlerini yönetici, yöneticisi yoksa İK onaylar | `ApproverResolver` | Bilge | |
-| ⬜ | BR-08 | Onaylı izin sadece başlangıçtan önce iptal edilebilir | `CancelLeaveHandler`, `RequestLeaveCancellationHandler` | Sude | |
+| ✅ | BR-08 | Onaylı izin sadece başlangıçtan önce iptal edilebilir | `LeaveRequest` (`cancel`, `requestCancellation`, `approveCancellationRequest`); `CancelLeaveHandler`, `RequestLeaveCancellationHandler`, `ApproveLeaveCancellationHandler` | Sude | #122 |
 | ⬜ | BR-09 | Red ve iptalde gerekçe zorunlu | `RejectLeaveValidator`, `CancelLeaveValidator`, `RequestLeaveCancellationValidator` | Bilge, Sude | |
 | ⬜ | BR-10 | Pasif çalışan giriş yapamaz, talep açamaz | `LoginHandler`, `SubmitLeaveHandler` | Onur, Bilge | |
 | ⬜ | BR-11 | Yıllık hak ediş aynı yıl iki kez çalıştırılamaz | `RunAnnualAccrualHandler`, `annual_accrual_runs` tablosu | Zehra | |
 | ⬜ | BR-12 | Kullanılmayan yıllık izin sonraki yıla devreder (bonus) | `RunCarryOverHandler`, `LeaveBalanceService.carryOver` | Zehra | |
 | ✅ | BR-13 | En az 2 aktif İK bulunmalı | `HrMinimumRule` (`UpdateEmployeeHandler`, `DeactivateEmployeeHandler`) | Sude | #120 |
 | ⬜ | BR-14 | Sadece talep sahibi, sadece bekleyen talebini geri çekebilir | `WithdrawLeaveHandler` | Bilge | |
-| ⬜ | BR-15 | İptal yetkisi: yönetici; yöneticisi yoksa İK; İK'nın iznini başka bir İK | `CancellationAuthorizationPolicy` | Sude | |
+| ✅ | BR-15 | İptal yetkisi: yönetici; yöneticisi yoksa İK; İK'nın iznini başka bir İK | `ApproverResolver` (BR-07 ile aynı kural; `CancelLeaveHandler`) | Sude | #122 |
 | ✅ | BR-16 | Her durum değişikliği aynı transaction'da geçmişe yazılır; yazılamazsa değişiklik geri alınır | `LeaveHistoryService` | Zehra | #98 |
-| ⬜ | BR-17 | İptal talebine onaylayıcı karar verir; günler sadece kabul edilince iade edilir | `ApproveLeaveCancellationHandler`, `RejectLeaveCancellationHandler` | Sude | |
+| ✅ | BR-17 | İptal talebine onaylayıcı karar verir; günler sadece kabul edilince iade edilir | `ApproveLeaveCancellationHandler`, `RejectLeaveCancellationHandler` | Sude | #122 |
 | ⬜ | BR-18 | Başlangıca 3 gün veya daha az kalan iptal talebi acil gösterilir; başlangıç günü gelirse sonuçsuz olur | `CancellationUrgencyPolicy`, `ExpireCancellationRequestsHandler` | Onur | |
 
 ---
@@ -137,7 +137,7 @@ Bu dosya, analiz dokümanındaki bütün gereksinimlerin projede nerede karşıl
 | Durum | Kod | İşlem | Use case | Geri alınan durum (rollback senaryosu) | Rollback testi | Sorumlu | PR |
 |---|---|---|---|---|---|---|---|
 | ⬜ | T1 | İzin onayı: durum, geçmiş, bakiye düşümü | `ApproveLeave` | Bakiye yetmezse talep PENDING kalır, geçmiş satırı ve bakiye hareketi oluşmaz | | Bilge | |
-| ⬜ | T2 | Onaylı iznin iptali: durum, geçmiş, bakiye iadesi | `CancelLeave`, `ApproveLeaveCancellation` | Herhangi bir adım hata verirse izin APPROVED kalır, gün iade edilmez | | Sude | |
+| ✅ | T2 | Onaylı iznin iptali: durum, geçmiş, bakiye iadesi | `CancelLeave`, `ApproveLeaveCancellation` | Herhangi bir adım hata verirse izin APPROVED kalır, gün iade edilmez | `LeaveCancellationIntegrationTest.aFailureInTheRefundRollsBackTheCancellation`, `...aFailureInTheRefundKeepsTheCancellationRequestOpen` | Sude | #122 |
 | ✅ | T3 | Yıllık hak ediş: tüm aktif çalışanlar | `RunAnnualAccrual` | Bir çalışanda hata olursa hiçbir çalışana hak yazılmaz | `RunAnnualAccrualIntegrationTest.aFailureHalfwayRollsBackEverythingAndTheYearCanBeRunAgain` | Zehra | #108 |
 | ✅ | T4 | Çalışan ekleme ve ilk bakiyeler | `CreateEmployee` | Bakiye adımı hata verirse çalışan da oluşmaz | `CreateEmployeeIntegrationTest.aFailureInTheBalanceStepRollsBackTheEmployee` | Sude | #119 |
 | ⬜ | T5 | Süresi dolan iptal taleplerini sonuçsuz yapma | `ExpireCancellationRequests` | Her talep kendi transaction'ında; biri hata verirse diğerleri etkilenmez | | Onur | |
